@@ -49,11 +49,23 @@ void glfwError(int error, const char* description);
 // callback when a key is pressed
 void keySelect(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+// callback when a mouse button is pressed
+void mouseClick(GLFWwindow* window, int button, int action, int mods);
+
+// flags for scene camera movement
+bool fTransXp = false;
+bool fTransXn = false;
+bool fTransYp = false;
+bool fTransYn = false;
+bool fRotPanTilt = false;
+
 int main (int argc, char** argv) {
 	cout << "Loading URDF world model file: " << world_fname << endl;
 
 	// load graphics scene
 	auto graphics = new Sai2Graphics::Sai2Graphics(world_fname, false);
+	Vector3d camera_pos, camera_lookat, camera_vertical;
+	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 	graphics->_world->setBackgroundColor(0.4, 0.4, 0.4);
 
 	// load robots
@@ -73,10 +85,20 @@ int main (int argc, char** argv) {
 	robot->updateModel();
 
 	// initialize GLFW window
+	// information about computer screen and GLUT display window
+    GLFWmonitor* primary = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(primary);
+	int screenW = mode->width;
+    int screenH = mode->height;
+    int windowW = 0.8 * screenH;
+    int windowH = 0.5 * screenH;
+    int windowPosY = (screenH - windowH) / 2;
+    int windowPosX = windowPosY;
 	GLFWwindow* window = glfwInitialize();
 
     // set callbacks
 	glfwSetKeyCallback(window, keySelect);
+	glfwSetMouseButtonCallback(window, mouseClick);
 
 	// start the simulation
 	thread sim_thread(simulation, robot, sim);
@@ -85,17 +107,75 @@ int main (int argc, char** argv) {
 	thread ctrl_thread(control, robot, sim);
 	
     // while window is open:
+    // cache variables
+	double last_cursorx, last_cursory;
+
+	Eigen::MatrixXd G;
+	Eigen::Matrix3d R;
+	Eigen::Vector3d center_point = Eigen::Vector3d::Zero();
     while (!glfwWindowShouldClose(window)) {
 		// update graphics. this automatically waits for the correct amount of time
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
 		graphics->updateGraphics(robot_name, robot);
 		graphics->render(camera_name, width, height);
+		// swap buffers
 		glfwSwapBuffers(window);
+
+		// wait until all GL commands are completed
 		glFinish();
+
+		// check for any OpenGL errors
+		GLenum err;
+		err = glGetError();
+		assert(err == GL_NO_ERROR);
 
 	    // poll for events
 	    glfwPollEvents();
+	
+		// move scene camera as required
+    	// graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
+    	Eigen::Vector3d cam_up_axis;
+    	// cam_up_axis = camera_vertical;
+    	// cam_up_axis.normalize();
+    	cam_up_axis << 0.0, 0.0, 1.0; //TODO: there might be a better way to do this
+	    Eigen::Vector3d cam_roll_axis = (camera_lookat - camera_pos).cross(cam_up_axis);
+    	cam_roll_axis.normalize();
+    	Eigen::Vector3d cam_lookat_axis = camera_lookat;
+    	cam_lookat_axis.normalize();
+    	if (fTransXp) {
+	    	camera_pos = camera_pos + 0.05*cam_roll_axis;
+	    	camera_lookat = camera_lookat + 0.05*cam_roll_axis;
+	    }
+	    if (fTransXn) {
+	    	camera_pos = camera_pos - 0.05*cam_roll_axis;
+	    	camera_lookat = camera_lookat - 0.05*cam_roll_axis;
+	    }
+	    if (fTransYp) {
+	    	// camera_pos = camera_pos + 0.05*cam_lookat_axis;
+	    	camera_pos = camera_pos + 0.05*cam_up_axis;
+	    	camera_lookat = camera_lookat + 0.05*cam_up_axis;
+	    }
+	    if (fTransYn) {
+	    	// camera_pos = camera_pos - 0.05*cam_lookat_axis;
+	    	camera_pos = camera_pos - 0.05*cam_up_axis;
+	    	camera_lookat = camera_lookat - 0.05*cam_up_axis;
+	    }
+	    if (fRotPanTilt) {
+	    	// get current cursor position
+	    	double cursorx, cursory;
+			glfwGetCursorPos(window, &cursorx, &cursory);
+			//TODO: might need to re-scale from screen units to physical units
+			double compass = 0.006*(cursorx - last_cursorx);
+			double azimuth = 0.006*(cursory - last_cursory);
+			double radius = (camera_pos - camera_lookat).norm();
+			Eigen::Matrix3d m_tilt; m_tilt = Eigen::AngleAxisd(azimuth, -cam_roll_axis);
+			camera_pos = camera_lookat + m_tilt*(camera_pos - camera_lookat);
+			Eigen::Matrix3d m_pan; m_pan = Eigen::AngleAxisd(compass, -cam_up_axis);
+			camera_pos = camera_lookat + m_pan*(camera_pos - camera_lookat);
+	    }
+	    graphics->setCameraPose(camera_name, camera_pos, cam_up_axis, camera_lookat);
+	    glfwGetCursorPos(window, &last_cursorx, &last_cursory);
 	}
 
 	// stop simulation
@@ -266,4 +346,33 @@ void keySelect(GLFWwindow* window, int key, int scancode, int action, int mods)
         // change camera
         camera_name = "camera_isometric";
     }
+}
+
+//------------------------------------------------------------------------------
+
+void mouseClick(GLFWwindow* window, int button, int action, int mods) {
+	bool set = (action != GLFW_RELEASE);
+	//TODO: mouse interaction with robot
+	switch (button) {
+		// left click pans and tilts
+		case GLFW_MOUSE_BUTTON_LEFT:
+			fRotPanTilt = set;
+			// NOTE: the code below is recommended but doesn't work well
+			// if (fRotPanTilt) {
+			// 	// lock cursor
+			// 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+			// } else {
+			// 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			// }
+			break;
+		// if right click: don't handle. this is for menu selection
+		case GLFW_MOUSE_BUTTON_RIGHT:
+			//TODO: menu
+			break;
+		// if middle click: don't handle. doesn't work well on laptops
+		case GLFW_MOUSE_BUTTON_MIDDLE:
+			break;
+		default:
+			break;
+	}
 }
