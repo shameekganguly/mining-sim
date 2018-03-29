@@ -1,0 +1,69 @@
+<?xml version="1.0" ?>
+
+<world name="demo_world" gravity="0.0 0.0 -3.00">
+
+	<robot name="Robot">
+		<!-- model node is required -->
+		<model dir="../resources/robot1" path="robot1.urdf" name="MiningRobot" />
+		<!-- origin node is optional -->
+		<origin xyz="0.0 0.0 0.0" rpy="1.5707 0 3.1415" />
+	</robot>
+
+	<static_object name="TunnelPart1">
+		<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	    <collision>
+	        <origin xyz="0.0 -0.3 0.0" rpy="1.5707 0.0 3.1415" />
+	        <geometry>
+	            <mesh filename="../resources/world/graphics/tunnel.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </collision>
+	    <visual>
+	        <origin xyz="0.0 -0.3 0.0" rpy="1.5707 0.0 3.1415" />
+	        <geometry>
+	            <mesh filename="../resources/world/graphics/tunnel.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+	</static_object>
+
+	<light name="light1" type="directional">
+		<position xyz="3.0 -3.0 3.0" />
+		<lookat xyz="0.0 0.0 2.0" />
+	</light>
+
+	<light name="light2" type="directional">
+		<position xyz="3.0 3.0 3.0" />
+		<lookat xyz="0.0 0.0 2.0" />
+	</light>
+
+<!-- 	<light name="light3" type="directional">
+		<position xyz="0.0 0.0 4.0" />
+		<lookat xyz="0.0 0.0 0.0" />
+	</light> -->
+
+<!-- 	<light name="light_spot" type="spot">
+		<position xyz="4.0 0.0 3.0" />
+		<lookat xyz="0.0 0.0 1.0" />
+	</light> -->
+	<camera name="camera_front">
+		<position xyz="0.5 0.0 0.5" />
+		<vertical xyz="0.0 0.0 1.0" />
+		<lookat xyz="0.0 0.0 -0.05" />
+	</camera>
+	<camera name="camera_top">
+		<position xyz="0.05 0.0 0.5" />
+		<vertical xyz="0.0 0.0 1.0" />
+		<lookat xyz="0.0 0.0 0.0" />
+	</camera>
+	<camera name="camera_side">
+		<position xyz="0.0 -0.5 0.0" />
+		<vertical xyz="0.0 0.0 1.0" />
+		<lookat xyz="0.0 0.0 0.0" />
+	</camera>
+	<camera name="camera_isometric">
+		<position xyz="0.7 -0.7 0.7" />
+		<vertical xyz="0.0 0.0 1.0" />
+		<lookat xyz="0.0 0.0 0.0" />
+	</camera>
+
+	<!-- TODO: support stereo specification -->
+</world>

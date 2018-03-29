@@ -1,0 +1,378 @@
+<?xml version="1.0" ?>
+
+<robot name="MiningRobot">
+
+	<link name="ground">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.001" />
+			<inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+	</link>
+	<link name="lz">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.001" />
+			<inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+	</link>
+	<link name="lx">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.001" />
+			<inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+	</link>
+	<link name="ly">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.001" />
+			<inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+	</link>
+	<link name="lrz">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.001" />
+			<inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+	</link>
+	<link name="lry">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.001" />
+			<inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+	</link>
+	<link name="rearbody">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.000 0.015  -0.092" rpy="0.261 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/rearbody.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+	    <!-- <visual>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <cylinder length="0.064" radius="0.052"/>
+	        </geometry>
+	    </visual> -->
+	    <collision>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <cylinder length="0.064" radius="0.052"/>
+	        </geometry>
+	    </collision>
+	</link>
+
+	<link name="forebody">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.000 0.0  0.0" rpy="0.0 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/forebody.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+	    <!-- <visual>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <cylinder length="0.064" radius="0.052"/>
+	        </geometry>
+	    </visual> -->
+	    <collision>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <cylinder length="0.064" radius="0.052"/>
+	        </geometry>
+	    </collision>
+	</link>
+	<link name="drill1">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.000 0.0  0.0" rpy="1.5707 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.0025 0.0025 0.0025" />
+	        </geometry>
+	    </visual>
+    </link>
+	<link name="drill2">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.000 0.0  0.0" rpy="1.5707 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.0025 0.0025 0.0025" />
+	        </geometry>
+	    </visual>
+    </link>
+	<link name="drill3">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.000 0.0  0.0" rpy="1.5707 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.0025 0.0025 0.0025" />
+	        </geometry>
+	    </visual>
+    </link>
+
+	<link name="front_brake_cam1">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.02 -0.015 -0.038" rpy="0.0 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/brake_cam.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+    </link>
+
+    <link name="front_brake_cam2">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="-0.02 -0.015 -0.038" rpy="0.0 0.0 0" />
+	        <geometry>
+	            <mesh filename="graphics/brake_cam2.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+    </link>
+
+    <link name="front_brake_cam3">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.02 -0.061 -0.038" rpy="0.0 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/brake_cam.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+    </link>
+
+    <link name="front_brake_cam4">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="-0.02 -0.061 -0.038" rpy="0.0 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/brake_cam2.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+    </link>
+
+    <link name="rear_brake_cam1">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.02 -0.015 -0.038" rpy="0.0 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/brake_cam.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+    </link>
+
+    <link name="rear_brake_cam2">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="-0.02 -0.015 -0.038" rpy="0.0 0.0 0" />
+	        <geometry>
+	            <mesh filename="graphics/brake_cam2.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+    </link>
+
+    <link name="rear_brake_cam3">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="0.02 -0.061 -0.038" rpy="0.0 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/brake_cam.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+    </link>
+
+    <link name="rear_brake_cam4">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.500" />
+			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <origin xyz="-0.02 -0.061 -0.038" rpy="0.0 0 0" />
+	        <geometry>
+	            <mesh filename="graphics/brake_cam2.obj" scale="1.0 1.0 1.0" />
+	        </geometry>
+	    </visual>
+    </link>
+
+	<joint name="j1" type="prismatic">
+		<parent link="ground" />
+		<child link="lz" />
+		<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="j2" type="prismatic">
+		<parent link="lz" />
+		<child link="lx" />
+		<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+		<axis xyz="1 0 0" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="j3" type="prismatic">
+		<parent link="lx" />
+		<child link="ly" />
+		<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 1 0" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="j4" type="revolute">
+		<parent link="ly" />
+		<child link="lrz" />
+		<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="j5" type="revolute">
+		<parent link="lrz" />
+		<child link="lry" />
+		<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 1 0" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="j6" type="revolute">
+		<parent link="lry" />
+		<child link="rearbody" />
+		<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+		<axis xyz="1 0 0" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jbody-pitch" type="revolute">
+		<parent link="rearbody" />
+		<child link="forebody" />
+		<origin xyz="0.0 0.0 -0.095" rpy="0.0 0.0 0.0" />
+		<axis xyz="1 0 0" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jdrill1-pz" type="prismatic">
+		<parent link="forebody" />
+		<child link="drill1" />
+		<origin xyz="0.0 0.035 -0.03" rpy="0.33 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jdrill2-pz" type="prismatic">
+		<parent link="forebody" />
+		<child link="drill2" />
+		<origin xyz="0.027 -0.017 -0.03" rpy="-0.13 -0.22 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jdrill3-pz" type="prismatic">
+		<parent link="forebody" />
+		<child link="drill3" />
+		<origin xyz="-0.027 -0.017 -0.03" rpy="-0.13 0.22 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jfront_bcam1" type="revolute">
+		<parent link="forebody" />
+		<child link="front_brake_cam1" />
+		<origin xyz="-0.02 0.015 0.038" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jfront_bcam2" type="revolute">
+		<parent link="forebody" />
+		<child link="front_brake_cam2" />
+		<origin xyz="0.02 0.015 0.038" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jfront_bcam3" type="revolute">
+		<parent link="forebody" />
+		<child link="front_brake_cam3" />
+		<origin xyz="-0.02 0.023 0.038" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jfront_bcam4" type="revolute">
+		<parent link="forebody" />
+		<child link="front_brake_cam4" />
+		<origin xyz="0.02 0.023 0.038" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jrear_bcam1" type="revolute">
+		<parent link="rearbody" />
+		<child link="rear_brake_cam1" />
+		<origin xyz="-0.02 0.015 0.038" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jrear_bcam2" type="revolute">
+		<parent link="rearbody" />
+		<child link="rear_brake_cam2" />
+		<origin xyz="0.02 0.015 0.038" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jrear_bcam3" type="revolute">
+		<parent link="rearbody" />
+		<child link="rear_brake_cam3" />
+		<origin xyz="-0.02 0.023 0.038" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jrear_bcam4" type="revolute">
+		<parent link="rearbody" />
+		<child link="rear_brake_cam4" />
+		<origin xyz="0.02 0.023 0.038" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+</robot>
+
+</xml>
