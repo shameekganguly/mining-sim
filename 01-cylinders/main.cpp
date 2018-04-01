@@ -40,6 +40,8 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
 // bool f_global_sim_pause = false; // use with caution!
 bool f_global_sim_pause = true; // use with caution!
 
+bool f_camera_view_changed = false;
+
 // initialize window manager
 GLFWwindow* glfwInitialize();
 
@@ -134,7 +136,11 @@ int main (int argc, char** argv) {
 	    glfwPollEvents();
 	
 		// move scene camera as required
-    	// graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
+		if (f_camera_view_changed) {
+			graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
+			f_camera_view_changed = true;
+		}
+    	
     	Eigen::Vector3d cam_up_axis;
     	// cam_up_axis = camera_vertical;
     	// cam_up_axis.normalize();
@@ -199,6 +205,14 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	timer.initializeTimer();
 	timer.setLoopFrequency(1000); //1000Hz timer
 	double last_time = timer.elapsedTime(); //secs
+
+	// States
+	enum OperationStates {
+		NoOp = 0,
+		Drilling,
+		MovingForeBody,
+		MovingRearBody
+	};
 
 	// dof counts
 	int dof = robot->dof();
@@ -330,21 +344,25 @@ void keySelect(GLFWwindow* window, int key, int scancode, int action, int mods)
     {
         // change camera
         camera_name = "camera_front";
+        f_camera_view_changed = true;
     }
     if ((key == '2') && action == GLFW_PRESS)
     {
         // change camera
         camera_name = "camera_side";
+        f_camera_view_changed = true;
     }
     if ((key == '3') && action == GLFW_PRESS)
     {
         // change camera
         camera_name = "camera_top";
+        f_camera_view_changed = true;
     }
     if ((key == '4') && action == GLFW_PRESS)
     {
         // change camera
         camera_name = "camera_isometric";
+        f_camera_view_changed = true;
     }
 }
 
