@@ -4,13 +4,19 @@ INSTALLATION:
 3. Install sai2-model: git@github.com:manips-sai-org/sai2-model.git
 4. Install sai2-graphics: git@github.com:manips-sai-org/sai2-graphics.git
 5. Install sai2-simulation: git@github.com:manips-sai-org/sai2-simulation.git (branch shameek_sp)
-6. Build 
+6. Import graphics files from robo:/afs/cs.stanford.edu/group/manips/sim_resources/gold_mining/ to resources/
+
+BUILD: 
 $ mkdir build
 $ cd build
 $ cmake -DCMAKE_BUILD_TYPE=Release ..
 $ make
 $ cd ..
-7. Import graphics files from robo:/afs/cs.stanford.edu/group/manips/sim_resources/gold_mining/ to resources/
-8. Run
+
+RUN:
 $ cd bin
 $ ./01-cylinders
+
+REBUILD SHORT COMMAND:
+cd ../build/ && cmake -DCMAKE_BUILD_TYPE=Release .. && make && cd ../bin && ./01-cylinders
+
