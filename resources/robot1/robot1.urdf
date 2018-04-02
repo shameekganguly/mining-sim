@@ -56,6 +56,60 @@
 	            <mesh filename="graphics/rearbody.obj" scale="1.0 1.0 1.0" />
 	        </geometry>
 	    </visual>
+	    <visual>
+	        <origin xyz="0.02 0.0  -0.04" rpy="0.0 0 0" />
+	        <geometry>
+	            <cylinder length="0.07" radius="0.004"/>
+	        </geometry>
+	        <material name="material_orange">
+		        <color rgba="0.7 0.25 0.0 1.0" />
+	        </material>
+	    </visual>
+	    <visual>
+	        <origin xyz="0.016 0.02  -0.04" rpy="0.0 0 0" />
+	        <geometry>
+	            <cylinder length="0.07" radius="0.004"/>
+	        </geometry>
+	        <material name="material_orange">
+		        <color rgba="0.7 0.25 0.0 1.0" />
+	        </material>
+	    </visual>
+	    <visual>
+	        <origin xyz="-0.02 0.0  -0.04" rpy="0.0 0 0" />
+	        <geometry>
+	            <cylinder length="0.07" radius="0.004"/>
+	        </geometry>
+	        <material name="material_orange">
+		        <color rgba="0.7 0.25 0.0 1.0" />
+	        </material>
+	    </visual>
+	    <visual>
+	        <origin xyz="-0.016 0.02  -0.04" rpy="0.0 0 0" />
+	        <geometry>
+	            <cylinder length="0.07" radius="0.004"/>
+	        </geometry>
+	        <material name="material_orange">
+		        <color rgba="0.7 0.25 0.0 1.0" />
+	        </material>
+	    </visual>
+	    <visual>
+	        <origin xyz="0.01 -0.02  -0.04" rpy="0.0 0 0" />
+	        <geometry>
+	            <cylinder length="0.07" radius="0.004"/>
+	        </geometry>
+	        <material name="material_orange">
+		        <color rgba="0.7 0.25 0.0 1.0" />
+	        </material>
+	    </visual>
+	    <visual>
+	        <origin xyz="-0.01 -0.02  -0.04" rpy="0.0 0 0" />
+	        <geometry>
+	            <cylinder length="0.07" radius="0.004"/>
+	        </geometry>
+	        <material name="material_orange">
+		        <color rgba="0.7 0.25 0.0 1.0" />
+	        </material>
+	    </visual>
 	    <!-- <visual>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>
@@ -104,7 +158,7 @@
 		<visual>
 	        <origin xyz="0.000 0.0  0.0" rpy="1.5707 0 0" />
 	        <geometry>
-	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.0025 0.0025 0.0025" />
+	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.003 0.003 0.003" />
 	        </geometry>
 	    </visual>
     </link>
@@ -117,7 +171,7 @@
 		<visual>
 	        <origin xyz="0.000 0.0  0.0" rpy="1.5707 0 0" />
 	        <geometry>
-	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.0025 0.0025 0.0025" />
+	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.003 0.003 0.003" />
 	        </geometry>
 	    </visual>
     </link>
@@ -130,7 +184,7 @@
 		<visual>
 	        <origin xyz="0.000 0.0  0.0" rpy="1.5707 0 0" />
 	        <geometry>
-	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.0025 0.0025 0.0025" />
+	            <mesh filename="graphics/roller_cone_drill_bit_02.obj" scale="0.003 0.003 0.003" />
 	        </geometry>
 	    </visual>
     </link>
@@ -170,7 +224,7 @@
 			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
 		</inertial>
 		<visual>
-	        <origin xyz="0.02 -0.061 -0.038" rpy="0.0 0 0" />
+	        <origin xyz="0.02 -0.015 -0.038" rpy="0.0 0 0" />
 	        <geometry>
 	            <mesh filename="graphics/brake_cam.obj" scale="1.0 1.0 1.0" />
 	        </geometry>
@@ -184,7 +238,7 @@
 			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
 		</inertial>
 		<visual>
-	        <origin xyz="-0.02 -0.061 -0.038" rpy="0.0 0 0" />
+	        <origin xyz="-0.02 -0.015 -0.038" rpy="0.0 0 0" />
 	        <geometry>
 	            <mesh filename="graphics/brake_cam2.obj" scale="1.0 1.0 1.0" />
 	        </geometry>
@@ -226,7 +280,7 @@
 			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
 		</inertial>
 		<visual>
-	        <origin xyz="0.02 -0.061 -0.038" rpy="0.0 0 0" />
+	        <origin xyz="0.02 -0.015 -0.038" rpy="0.0 0 0" />
 	        <geometry>
 	            <mesh filename="graphics/brake_cam.obj" scale="1.0 1.0 1.0" />
 	        </geometry>
@@ -240,7 +294,7 @@
 			<inertia ixx="0.0012" iyy="0.0012" izz="0.0022" ixy="0" ixz="0" iyz="0" />
 		</inertial>
 		<visual>
-	        <origin xyz="-0.02 -0.061 -0.038" rpy="0.0 0 0" />
+	        <origin xyz="-0.02 -0.015 -0.038" rpy="0.0 0 0" />
 	        <geometry>
 	            <mesh filename="graphics/brake_cam2.obj" scale="1.0 1.0 1.0" />
 	        </geometry>
@@ -299,77 +353,77 @@
 	<joint name="jdrill1-pz" type="prismatic">
 		<parent link="forebody" />
 		<child link="drill1" />
-		<origin xyz="0.0 0.035 -0.03" rpy="0.33 0.0 0.0" />
+		<origin xyz="0.0 0.025 -0.012" rpy="0.33 0.0 0.0" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jdrill2-pz" type="prismatic">
 		<parent link="forebody" />
 		<child link="drill2" />
-		<origin xyz="0.027 -0.017 -0.03" rpy="-0.13 -0.22 0.0" />
+		<origin xyz="0.022 -0.011 -0.012" rpy="-0.13 -0.22 0.0" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jdrill3-pz" type="prismatic">
 		<parent link="forebody" />
 		<child link="drill3" />
-		<origin xyz="-0.027 -0.017 -0.03" rpy="-0.13 0.22 0.0" />
+		<origin xyz="-0.022 -0.011 -0.012" rpy="-0.13 0.22 0.0" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jfront_bcam1" type="revolute">
 		<parent link="forebody" />
 		<child link="front_brake_cam1" />
-		<origin xyz="-0.02 0.015 0.038" rpy="0.0 0.0 0.0" />
+		<origin xyz="-0.02 0.015 0.038" rpy="0.0 0.0 -1.4" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jfront_bcam2" type="revolute">
 		<parent link="forebody" />
 		<child link="front_brake_cam2" />
-		<origin xyz="0.02 0.015 0.038" rpy="0.0 0.0 0.0" />
+		<origin xyz="0.02 0.015 0.038" rpy="0.0 0.0 1.4" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jfront_bcam3" type="revolute">
 		<parent link="forebody" />
 		<child link="front_brake_cam3" />
-		<origin xyz="-0.02 0.023 0.038" rpy="0.0 0.0 0.0" />
+		<origin xyz="-0.02 -0.033 0.038" rpy="0.0 0.0 -0.7" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jfront_bcam4" type="revolute">
 		<parent link="forebody" />
 		<child link="front_brake_cam4" />
-		<origin xyz="0.02 0.023 0.038" rpy="0.0 0.0 0.0" />
+		<origin xyz="0.02 -0.033 0.038" rpy="0.0 0.0 0.7" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jrear_bcam1" type="revolute">
 		<parent link="rearbody" />
 		<child link="rear_brake_cam1" />
-		<origin xyz="-0.02 0.015 0.038" rpy="0.0 0.0 0.0" />
+		<origin xyz="-0.02 0.015 0.038" rpy="0.0 0.0 -1.4" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jrear_bcam2" type="revolute">
 		<parent link="rearbody" />
 		<child link="rear_brake_cam2" />
-		<origin xyz="0.02 0.015 0.038" rpy="0.0 0.0 0.0" />
+		<origin xyz="0.02 0.015 0.038" rpy="0.0 0.0 1.4" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jrear_bcam3" type="revolute">
 		<parent link="rearbody" />
 		<child link="rear_brake_cam3" />
-		<origin xyz="-0.02 0.023 0.038" rpy="0.0 0.0 0.0" />
+		<origin xyz="-0.02 -0.033 0.038" rpy="0.0 0.0 -0.7" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
 	<joint name="jrear_bcam4" type="revolute">
 		<parent link="rearbody" />
 		<child link="rear_brake_cam4" />
-		<origin xyz="0.02 0.023 0.038" rpy="0.0 0.0 0.0" />
+		<origin xyz="0.02 -0.033 0.038" rpy="0.0 0.0 0.7" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
