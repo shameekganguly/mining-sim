@@ -124,7 +124,14 @@
 	    </collision>
 	</link>
 
-	<link name="forebody">
+	<link name="forebody_virtual">
+		<inertial>
+			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+			<mass value="0.001" />
+			<inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+	</link>
+		<link name="forebody">
 		<inertial>
 			<origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 			<mass value="0.500" />
@@ -343,28 +350,35 @@
 		<axis xyz="1 0 0" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
-	<joint name="jbody-pitch" type="revolute">
+	<joint name="jbody-extend" type="prismatic">
 		<parent link="rearbody" />
+		<child link="forebody_virtual" />
+		<origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+		<axis xyz="0 0 1" />
+		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
+	</joint>
+	<joint name="jbody-pitch" type="revolute">
+		<parent link="forebody_virtual" />
 		<child link="forebody" />
-		<origin xyz="0.0 0.0 -0.095" rpy="0.0 0.0 0.0" />
+		<origin xyz="0.0 0.0 -0.075" rpy="0.0 0.0 0.0" />
 		<axis xyz="1 0 0" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
-	<joint name="jdrill1-pz" type="prismatic">
+	<joint name="jdrill1-rz" type="revolute">
 		<parent link="forebody" />
 		<child link="drill1" />
 		<origin xyz="0.0 0.025 -0.012" rpy="0.33 0.0 0.0" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
-	<joint name="jdrill2-pz" type="prismatic">
+	<joint name="jdrill2-rz" type="revolute">
 		<parent link="forebody" />
 		<child link="drill2" />
 		<origin xyz="0.022 -0.011 -0.012" rpy="-0.13 -0.22 0.0" />
 		<axis xyz="0 0 1" />
 		<limit lower="-0.06" upper="0.0" effort="21.3" velocity="1.0" />
 	</joint>
-	<joint name="jdrill3-pz" type="prismatic">
+	<joint name="jdrill3-rz" type="revolute">
 		<parent link="forebody" />
 		<child link="drill3" />
 		<origin xyz="-0.022 -0.011 -0.012" rpy="-0.13 0.22 0.0" />
