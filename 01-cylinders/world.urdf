@@ -23,6 +23,18 @@
 	            <mesh filename="../resources/world/graphics/tunnel.obj" scale="0.7 0.7 0.7" />
 	        </geometry>
 	    </visual>
+	    <visual>
+	        <origin xyz="0.0 0.1 0.0" rpy="1.5707 0.0 3.1415" />
+	        <geometry>
+	            <mesh filename="../resources/world/graphics/tunnel.obj" scale="0.7 0.7 0.7" />
+	        </geometry>
+	    </visual>
+	    <visual>
+	        <origin xyz="0.0 -0.7 0.0" rpy="1.5707 0.0 3.1415" />
+	        <geometry>
+	            <mesh filename="../resources/world/graphics/tunnel.obj" scale="0.7 0.7 0.7" />
+	        </geometry>
+	    </visual>
 	</static_object>
 
 	<light name="light1" type="directional">
@@ -45,9 +57,9 @@
 		<lookat xyz="0.0 0.0 1.0" />
 	</light> -->
 	<camera name="camera_front">
-		<position xyz="0.5 0.0 0.5" />
+		<position xyz="0.26 -0.06 0.35" />
 		<vertical xyz="0.0 0.0 1.0" />
-		<lookat xyz="0.0 0.0 -0.05" />
+		<lookat xyz="0.0 -0.04 0.01" />
 	</camera>
 	<camera name="camera_top">
 		<position xyz="0.05 0.0 0.5" />
@@ -55,14 +67,14 @@
 		<lookat xyz="0.0 0.0 0.0" />
 	</camera>
 	<camera name="camera_side">
-		<position xyz="0.0 -0.5 0.0" />
+		<position xyz="0.1 -0.3 0.03" />
 		<vertical xyz="0.0 0.0 1.0" />
-		<lookat xyz="0.0 0.0 0.0" />
+		<lookat xyz="0.0 0.0 0.01" />
 	</camera>
 	<camera name="camera_isometric">
-		<position xyz="0.7 -0.7 0.7" />
+		<position xyz="0.26 0.1 0.3" />
 		<vertical xyz="0.0 0.0 1.0" />
-		<lookat xyz="0.0 0.0 0.0" />
+		<lookat xyz="0.0 -0.02 0.01" />
 	</camera>
 
 	<!-- TODO: support stereo specification -->
