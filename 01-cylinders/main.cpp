@@ -13,6 +13,7 @@ Date: 1/15/18
 #include "Sai2Model.h"
 #include "Sai2Graphics.h"
 #include "Sai2Simulation.h"
+#include <dynamics3d.h>
 
 #include "timer/LoopTimer.h"
 
@@ -31,14 +32,24 @@ string camera_name = "camera_front";
 
 // global variables
 Eigen::VectorXd q_home;
+chai3d::cGenericObject* fore_cam1;
+chai3d::cGenericObject* fore_cam2;
+chai3d::cGenericObject* fore_cam3;
+chai3d::cGenericObject* fore_cam4;
+chai3d::cGenericObject* rear_cam1;
+chai3d::cGenericObject* rear_cam2;
+chai3d::cGenericObject* rear_cam3;
+chai3d::cGenericObject* rear_cam4;
+chai3d::cMaterialPtr cam_disengaged_mat;
+chai3d::cMaterialPtr cam_engaged_mat;
 
 // simulation loop
 bool fSimulationRunning = false;
 void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
 
-// bool f_global_sim_pause = false; // use with caution!
-bool f_global_sim_pause = true; // use with caution!
+bool f_global_sim_pause = false; // use with caution!
+// bool f_global_sim_pause = true; // use with caution!
 
 bool f_camera_view_changed = false;
 
@@ -69,6 +80,31 @@ int main (int argc, char** argv) {
 	Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 	graphics->_world->setBackgroundColor(0.4, 0.4, 0.4);
+
+	// load objects for cams
+	chai3d::cGenericObject* rearbody_graphic = graphics->_world->getChild(0)->getChild(0)->getChild(0)->getChild(0)->getChild(0)->getChild(0)->getChild(0);
+	rear_cam1 = rearbody_graphic->getChild(8)->getChild(0);
+	rear_cam2 = rearbody_graphic->getChild(9)->getChild(0);
+	rear_cam3 = rearbody_graphic->getChild(10)->getChild(0);
+	rear_cam4 = rearbody_graphic->getChild(11)->getChild(0);
+	chai3d::cGenericObject* forebody_graphic = graphics->_world->getChild(0)->getChild(0)->getChild(0)->getChild(0)->getChild(0)->getChild(0)->getChild(0)->getChild(7)->getChild(0);
+	fore_cam1 = forebody_graphic->getChild(4)->getChild(0);
+	fore_cam2 = forebody_graphic->getChild(5)->getChild(0);
+	fore_cam3 = forebody_graphic->getChild(6)->getChild(0);
+	fore_cam4 = forebody_graphic->getChild(7)->getChild(0);
+
+	cam_engaged_mat = chai3d::cMaterial::create();
+	cam_engaged_mat->setRedFireBrick();
+	cam_disengaged_mat = chai3d::cMaterial::create();
+	cam_disengaged_mat->setGreenLime();
+	rear_cam1->setMaterial(cam_disengaged_mat);
+	rear_cam2->setMaterial(cam_disengaged_mat);
+	rear_cam3->setMaterial(cam_disengaged_mat);
+	rear_cam4->setMaterial(cam_disengaged_mat);
+	fore_cam4->setMaterial(cam_disengaged_mat);
+	fore_cam3->setMaterial(cam_disengaged_mat);
+	fore_cam2->setMaterial(cam_disengaged_mat);
+	fore_cam1->setMaterial(cam_disengaged_mat);
 
 	// load robots
 	auto robot = new Sai2Model::Sai2Model(robot_fname, false);
@@ -267,16 +303,145 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	timer.setLoopFrequency(1500); //1.5kHz timer
 	double last_time = timer.elapsedTime(); //secs
 
+	/* ---- START: VARIABLES FOR KINEMATIC SIMULATION ---- */
+	enum OperationStates {
+		NoOp = 0,
+		EngageRearCams,
+		DisengageForeCams,
+		MovingForeBody,
+		EngageForeCams,
+		DisengageRearCams,
+		MovingRearBody,
+	};
+	OperationStates robot_state = EngageRearCams;
+	auto base = sim->_world->getBaseNode(robot_name);
+	uint num_drill_cycles = 0;
+	double state_current_time = 0;
+	double last_state_stop_time = 2;
+	double last_rear_body_pos = 0.0;
+	bool forecams_engaged = false;
+	/* ---- END: VARIABLES FOR KINEMATIC SIMULATION ---- */
+
 	bool fTimerDidSleep = true;
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
-
-		// integrate forward
 		double curr_time = timer.elapsedTime();
-		double loop_dt = curr_time - last_time;
-		if (!f_global_sim_pause) {
-			sim->integrate(loop_dt);
+
+		// // integrate forward
+		// double curr_time = timer.elapsedTime();
+		// double loop_dt = curr_time - last_time;
+		// if (!f_global_sim_pause) {
+		// 	sim->integrate(loop_dt);
+		// }
+
+		/* ---- START: KINEMATIC SIMULATION FOR DEMO ---- */
+		// Use this for kinematic only simulation. This does not use the control torques
+		// at all. It simply moves the joints
+		state_current_time = curr_time - last_state_stop_time;
+
+		if (curr_time < 2) {
+			continue;
 		}
+		// Move drills
+		base->getJoint("jdrill1-rz")->setPos(curr_time*0.3);
+		base->getJoint("jdrill2-rz")->setPos(curr_time*0.3);
+		base->getJoint("jdrill3-rz")->setPos(curr_time*0.3);
+
+		if (robot_state == EngageRearCams) {
+			if (base->getJoint("jrear_bcam1")->getPos() > 1.4) {
+				if (forecams_engaged) {
+					robot_state = DisengageForeCams;
+					fore_cam1->setMaterial(cam_disengaged_mat);
+					fore_cam2->setMaterial(cam_disengaged_mat);
+					fore_cam3->setMaterial(cam_disengaged_mat);
+					fore_cam4->setMaterial(cam_disengaged_mat);
+				} else {
+					robot_state = MovingForeBody;
+				}
+				num_drill_cycles = 0;
+				last_state_stop_time = curr_time;
+				// change cam color
+				rear_cam1->setMaterial(cam_engaged_mat);
+				rear_cam2->setMaterial(cam_engaged_mat);
+				rear_cam3->setMaterial(cam_engaged_mat);
+				rear_cam4->setMaterial(cam_engaged_mat);
+				forecams_engaged = false;
+			} else {
+				base->getJoint("jrear_bcam1")->setPos(state_current_time*(0.0 - (-1.4))/2.0);
+				base->getJoint("jrear_bcam2")->setPos(state_current_time*(0.0 - (1.4))/2.0);
+				base->getJoint("jrear_bcam3")->setPos(state_current_time*(0.0 - (-0.7))/2.0);
+				base->getJoint("jrear_bcam4")->setPos(state_current_time*(0.0 - (0.7))/2.0);
+			}
+		}
+		else if (robot_state == DisengageForeCams) {
+			if (base->getJoint("jfront_bcam1")->getPos() < 0.0) {
+				forecams_engaged = false;
+				robot_state = MovingForeBody;
+				last_state_stop_time = curr_time;
+			} else {
+				base->getJoint("jfront_bcam1")->setPos(1.4 - state_current_time*(0.0 - (-1.4))/2.0);
+				base->getJoint("jfront_bcam2")->setPos(-1.4 - state_current_time*(0.0 - (1.4))/2.0);
+				base->getJoint("jfront_bcam3")->setPos(0.7 - state_current_time*(0.0 - (-0.7))/2.0);
+				base->getJoint("jfront_bcam4")->setPos(-0.7 - state_current_time*(0.0 - (0.7))/2.0);
+			}
+		}
+		else if (robot_state == MovingForeBody) {
+			if (num_drill_cycles > 2 && base->getJoint("jbody-pitch")->getPos() > 0.0) {
+				robot_state = EngageForeCams;
+				last_state_stop_time = curr_time;
+			} else {
+				const double T = 6.0;
+				base->getJoint("jbody-pitch")->setPos(0.16*sin(state_current_time*(2.0*M_PI)/(T)));
+				if (state_current_time > T) { ++num_drill_cycles; }
+				base->getJoint("jbody-extend")->setPos((-0.02)*state_current_time/T);
+			}
+		}
+		else if (robot_state == EngageForeCams) {
+			if (base->getJoint("jfront_bcam1")->getPos() > 1.4) {
+				robot_state = DisengageRearCams;
+				last_state_stop_time = curr_time;
+				last_rear_body_pos = base->getJoint("j1")->getPos();
+				forecams_engaged = true;
+				// change cam color
+				fore_cam1->setMaterial(cam_engaged_mat);
+				fore_cam2->setMaterial(cam_engaged_mat);
+				fore_cam3->setMaterial(cam_engaged_mat);
+				fore_cam4->setMaterial(cam_engaged_mat);
+
+				rear_cam1->setMaterial(cam_disengaged_mat);
+				rear_cam2->setMaterial(cam_disengaged_mat);
+				rear_cam3->setMaterial(cam_disengaged_mat);
+				rear_cam4->setMaterial(cam_disengaged_mat);
+			} else {
+				base->getJoint("jfront_bcam1")->setPos(state_current_time*(0.0 - (-1.4))/2.0);
+				base->getJoint("jfront_bcam2")->setPos(state_current_time*(0.0 - (1.4))/2.0);
+				base->getJoint("jfront_bcam3")->setPos(state_current_time*(0.0 - (-0.7))/2.0);
+				base->getJoint("jfront_bcam4")->setPos(state_current_time*(0.0 - (0.7))/2.0);
+			}
+		}
+		else if (robot_state == DisengageRearCams) {
+			if (base->getJoint("jrear_bcam1")->getPos() < 0.0) {
+				robot_state = MovingRearBody;
+				last_state_stop_time = curr_time;
+			} else {
+				base->getJoint("jrear_bcam1")->setPos(1.4 - state_current_time*(0.0 - (-1.4))/2.0);
+				base->getJoint("jrear_bcam2")->setPos(-1.4 - state_current_time*(0.0 - (1.4))/2.0);
+				base->getJoint("jrear_bcam3")->setPos(0.7 - state_current_time*(0.0 - (-0.7))/2.0);
+				base->getJoint("jrear_bcam4")->setPos(-0.7 - state_current_time*(0.0 - (0.7))/2.0);
+			}
+		}
+		else if (robot_state == MovingRearBody) {
+			if (base->getJoint("jbody-extend")->getPos() > 0.0) {
+				robot_state = EngageRearCams;
+				last_state_stop_time = curr_time;
+			} else {
+				const double T = 4.0;
+				base->getJoint("jbody-extend")->setPos(-0.02 - (-0.02)*state_current_time/T);
+				base->getJoint("j1")->setPos(last_rear_body_pos + (-0.02)*state_current_time/T);
+			}
+		}
+
+		/* ---- END: KINEMATIC SIMULATION FOR DEMO ---- */
 
 		// if (!fTimerDidSleep) {
 		// 	cout << "Warning: timer underflow! dt: " << loop_dt << "\n";
