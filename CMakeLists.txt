@@ -69,4 +69,6 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE        ${PROJECT_SOURCE_DIR}/bin)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${PROJECT_SOURCE_DIR}/bin)
 set (BINARY_DIR ${PROJECT_SOURCE_DIR}/bin)
 
-add_subdirectory(01-cylinders)
+#add_subdirectory(01-cylinders)
+add_subdirectory(02-capsuleEatsBall)
+add_subdirectory(03-capsule1D)
