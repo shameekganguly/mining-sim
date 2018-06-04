@@ -87,6 +87,8 @@ int main (int argc, char** argv) {
 	robot->updateModel();
 
 	// initialize GLFW window
+	GLFWwindow* window = glfwInitialize();
+
 	// information about computer screen and GLUT display window
     GLFWmonitor* primary = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(primary);
@@ -96,7 +98,6 @@ int main (int argc, char** argv) {
     int windowH = 0.5 * screenH;
     int windowPosY = (screenH - windowH) / 2;
     int windowPosX = windowPosY;
-	GLFWwindow* window = glfwInitialize();
 
     // set callbacks
 	glfwSetKeyCallback(window, keySelect);
