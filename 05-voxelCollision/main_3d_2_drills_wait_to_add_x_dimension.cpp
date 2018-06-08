@@ -38,6 +38,10 @@
     \author    <http://www.chai3d.org>
     \author    Francois Conti
     \version   3.2.0 $Rev: 1869 $
+
+
+
+    main_2D_Dr_vC_color
 */
 //==============================================================================
 
@@ -48,6 +52,9 @@
 #include <math.h>
 #include "timer/LoopTimer.h"
 #include <fstream>
+#include "voxelBoxNode.h"
+#include "voxelCollision.h"
+#include "drill.h"
 //------------------------------------------------------------------------------
 using namespace chai3d;
 using namespace std;
@@ -79,18 +86,19 @@ cCamera* camera;
 cDirectionalLight *light;
 
 // a small cylinder (cursor) representing the haptic device 
-cShapeCylinder* cursor;
+int numDrills = 2;
+std::map<int, cShapeCylinder*> cursor;
 
 //two spheres moving along with cursor to make it a capsule
-cShapeSphere* cursorS1;
-cShapeSphere* cursorS2;
+std::map<int, cShapeSphere*> cursorS1;
+std::map<int, cShapeSphere*> cursorS2;
+
+
+
+
 
 // a line representing the velocity vector of the haptic device
 cShapeLine* velocity;
-
-//obstacle spheres
-// int numObstacles = 3;
-// cShapeSphere* obstacleS;
 
 
 
@@ -153,14 +161,28 @@ int swapInterval = 1;
 
 
 
+
 //------------------------------------------------------------------------------
 // DECLARED NEW VARIABLES
 //------------------------------------------------------------------------------
 
-double Rc = 0.02; // radius of the cylinder
-double Hc = 0.05;
-double Rs = 0.01; // radius of the sphere obstacle
+const double Rc = 0.03; // radius of the cylinder
+const double Hc = 0.10;
+const double Rs = 0.01; // radius of the sphere obstacle
 #define PI 3.14159265
+
+
+const double halfOffsetDist = 2.0 * Rc;
+const double halfTiltAngle = 30.0;
+const double drillangle1[3][3] = {{1,                              0,                              0},
+                                  {0, cos(PI * (-halfTiltAngle / 180.0)), -sin(PI * (-halfTiltAngle / 180.0))},
+                                  {0, sin(PI * (-halfTiltAngle / 180.0)), cos(PI * (-halfTiltAngle / 180.0))}};
+
+const double drillangle2[3][3] = {{1,                             0,                              0},
+                                  {0, cos(PI * (halfTiltAngle / 180.0)), -sin(PI * (halfTiltAngle / 180.0))},
+                                  {0, sin(PI * (halfTiltAngle / 180.0)), cos(PI * (halfTiltAngle / 180.0))}};
+
+
 
 //flags for haptic interaction
 bool fHapticDeviceEnabled = false;
@@ -169,8 +191,17 @@ double scale_factor = 5.0;
 cLabel* labelProxyPosition;
 cVector3d textProxyPosition;
 
-int numObstacles = 5;
-cVector3d home_pos(0.0, 0.0, (2.0 * Rs * (numObstacles / 2 + 1) + Rs) + Hc / 2.0 + 2 * Rs); //the final 2 * Rs is for a little free space of the capsule
+
+
+
+// int numObstacles = 100;//64;//64;//1024
+// int sqrtNumObs = sqrt(numObstacles);
+//cVector3d home_pos(0.0, -0.5*Rs, (2.0 * Rs * (sqrtNumObs / 2 + 1) + Rs) + Hc / 2.0 - 5.0 * Rs); //the final 2 * Rs is for a little free space of the capsule
+
+int cbrtNumObs = 8;
+int numObstacles = pow(cbrtNumObs, 3);//64;//1024
+cVector3d home_pos(0.0, 0.0, (2.0 * Rs * (cbrtNumObs / 2 + 1) + Rs) + Hc / 2.0 + 2 * Rs); //the final 2 * Rs is for a little free space of the capsule
+
 
 cLabel* labelFContact;
 cLabel* labelBLIndex;
@@ -187,10 +218,26 @@ std::map<int, cShapeSphere*> boundaryLayer;
 bool capsuleInCollision;
 
 const double proxy_b_no_contact = 0.01;//will change between contact and no contact condition
-double proxy_b_contact = proxy_b_no_contact + 10 / drillingAngularSpeed;
-//double proxy_b_contact = 10 / drillingAngularSpeed;
+
+double k_collision_dir = 10.0;
+double k_collision_lat = 30.0;
+
+double proxy_b_contact_dir = proxy_b_no_contact + k_collision_dir / drillingAngularSpeed; //along the direction of the axis
+double proxy_b_contact_lat = proxy_b_no_contact + k_collision_lat / drillingAngularSpeed; //along the lateral direction
+
 ofstream myfile;//used for output velocity and force wrt time
 
+cVector3d lastLinearVel;
+
+//cShapeLine *boundingBoxLine = new cShapeLine[12];
+voxelCollision vC;
+
+// drill * dr1;
+// drill * dr2;
+
+std::map<int, drill*> dr;
+
+std::map<int, cShapeLine*> boundingBoxLine;
 
 
 //------------------------------------------------------------------------------
@@ -221,17 +268,9 @@ void close(void);
 //------------------------------------------------------------------------------
 
 
-
-// bool isInCollision(std::map<int, cShapeSphere*> &boundaryLayer, int idx,
-//                    cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c);
-
-int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c);
-
-
-
 //==============================================================================
 /*
-    DEMO:   03-capsule1D.cpp
+    DEMO:   05-voxelCollision.cpp
 
     This application illustrates how to program forces, torques and gripper
     forces to your haptic device.
@@ -256,7 +295,7 @@ int main(int argc, char* argv[])
     cout << endl;
     cout << "-----------------------------------" << endl;
     cout << "ROBOT_MINING_SIM" << endl;
-    cout << "Demo: 03-capsule1D" << endl;
+    cout << "Demo: 05-voxelCollision" << endl;
     cout << "Copyright 2003-2018" << endl;
     cout << "-----------------------------------" << endl << endl << endl;
     cout << "Keyboard Options:" << endl << endl;
@@ -266,6 +305,9 @@ int main(int argc, char* argv[])
     cout << "[m] - Enable/Disable vertical mirroring" << endl;
     cout << "[q] - Exit application" << endl;
     cout << endl << endl;
+
+
+    lastLinearVel.zero();
 
 
     //--------------------------------------------------------------------------
@@ -333,6 +375,12 @@ int main(int argc, char* argv[])
     }
 #endif
 
+    //--------------------------------------------------------------------------
+    // SET HIGHER FREQUENCY
+    //--------------------------------------------------------------------------
+    freqCounterGraphics.setTimePeriod(0.001);
+    freqCounterHaptics.setTimePeriod(0.001);
+
 
     //--------------------------------------------------------------------------
     // WORLD - CAMERA - LIGHTING
@@ -349,11 +397,16 @@ int main(int argc, char* argv[])
     world->addChild(camera);
 
     // position and orient the camera
-    camera->set( cVector3d (0.5, 0.0, 0.0),    // camera position (eye)
+    // camera->set( cVector3d (0.5, 0.0, 0.0),    // camera position (eye)
+    //              cVector3d (0.0, 0.0, 0.0),    // look at position (target)
+    //              cVector3d (0.0, 0.0, 1.0));   // direction of the (up) vector
+
+
+    camera->set( cVector3d (0.5, 0.5, 0.5),    // camera position (eye)
                  cVector3d (0.0, 0.0, 0.0),    // look at position (target)
                  cVector3d (0.0, 0.0, 1.0));   // direction of the (up) vector
 
-    // set the near and far clipping planes of the camera
+
     camera->setClippingPlanes(0.01, 10.0);
 
 
@@ -372,50 +425,170 @@ int main(int argc, char* argv[])
     // define direction of light beam
     light->setDir(-1.0, 0.0, 0.0);
 
-    // // create a sphere (cursor) to represent the haptic device
-    // cursor = new cShapeSphere(0.01);
-
-    // // insert cursor inside world
-    // world->addChild(cursor);
 
 
     //--------------------------------------------------------------------------
     // A CAPSULE SHAPE CURSOR
     //--------------------------------------------------------------------------
 
-    // double Rc = 0.01; // radius of the cylinder
-    // double Hc = 0.05;
-    // double Rs = 0.005; // radius of the sphere obstacle
+
     // create two moving spheres and a moving cylinder (cursor) to render a capsule which represents the haptic device
-    cursor = new cShapeCylinder(Rc, Rc, Hc);
-    cursorS1 = new cShapeSphere(Rc);
-    cursorS2 = new cShapeSphere(Rc);
+    
+    for (int i = 0; i < numDrills; ++i){
+        cursor[i] = new cShapeCylinder(Rc, Rc, Hc);
+        cursorS1[i] = new cShapeSphere(Rc);
+        cursorS2[i] = new cShapeSphere(Rc);
+        dr[i] = new drill(cursor[i], cursorS1[i], cursorS2[i], world);
+        dr[i]->setCapsuleShowEnabled(true);
+    }
+    //dr[1]->setCapsuleShowEnabled(false);
+    //dr1 = new drill(cursor[0], cursorS1[0], cursorS2[0], world);
+    // dr1->setCapsuleShowEnabled(true);
 
 
 
     cMatrix3d rotObstacle;
     rotObstacle.identity();
-        //rotation.identity();
-        // const double a_source[3][3] = {
-        //     {1, 0, 0},
-        //     {0, cos(PI * 45.0 / 180.0), -sin(PI * 45.0 / 180.0)},
-        //     {0, sin(PI * 45.0 / 180.0), cos(PI * 45.0 / 180.0)}
-        // };
-        // rotation.set(a_source);
+    
+    
+    cVector3d testObstaclePos;
+    int testObstacleIdx;
 
-    for (int i = 0; i < numObstacles; i++){
-        obstacleS[i] = new cShapeSphere(Rs);
-        cVector3d posObstacle(0, 0, -(i-numObstacles / 2) * 2.0 * Rs);
-        obstacleS[i]->setLocalPos(posObstacle);
-        obstacleS[i]->setLocalRot(rotObstacle);
-        world->addChild(obstacleS[i]); 
+
+    for (int i = 0; i < cbrtNumObs; i++){
+        for (int j = 0; j < cbrtNumObs; j++){
+            for (int k = 0; k < cbrtNumObs; k++){
+                int obsIdx = (cbrtNumObs * cbrtNumObs) * k + cbrtNumObs * i + j;
+                obstacleS[obsIdx] = new cShapeSphere(Rs);
+                cVector3d posObstacle(-(k - (cbrtNumObs / 2)) * (2 * Rs) - Rs * ((cbrtNumObs + 1) % 2),
+                                       (j - (cbrtNumObs / 2)) * (2 * Rs) + Rs * ((cbrtNumObs + 1) % 2),
+                                      -(i - (cbrtNumObs / 2)) * (2 * Rs) - Rs * ((cbrtNumObs + 1) % 2));
+                obstacleS[obsIdx]->setLocalPos(posObstacle);
+                obstacleS[obsIdx]->setLocalRot(rotObstacle);
+                world->addChild(obstacleS[obsIdx]);
+            }
+        }
+    }
+    // for (int i = 0; i < sqrtNumObs; ++i){
+    //     for (int j = 0; j < sqrtNumObs; ++j){
+    //             int obsIdx = sqrtNumObs * i + j;
+    //             obstacleS[obsIdx] = new cShapeSphere(Rs);
+    //             cVector3d posObstacle(0,(j - (sqrtNumObs / 2)) * (2 * Rs) + Rs * ((sqrtNumObs+1) % 2), -(i - (sqrtNumObs / 2)) * (2 * Rs) - Rs * ((sqrtNumObs + 1) % 2));
+    //             obstacleS[obsIdx]->setLocalPos(posObstacle);
+    //             obstacleS[obsIdx]->setLocalRot(rotObstacle);
+    //             world->addChild(obstacleS[obsIdx]);
+    //         }
+    // }
+
+
+    // voxelCollision vC;
+    vC.initialize(obstacleS, numObstacles);
+    //vC.printTree();
+
+
+
+
+
+
+
+    //------------------------------------------------------------------------------------
+    //only for bounding volume hierarchy test, and now we are using it to show the bounding box of the capsule
+
+    cVector3d mn;
+    cVector3d mx;
+    // int depth = 6;
+    // int order[] = {0,1,1,1,1,1};//problem
+    
+    int depth = 2;//another problem
+    int order[] = {0,0,0,1};
+
+    bool coutInfo = false;
+    vC.render(depth, order, mn, mx, coutInfo);
+    //vC.render(vC.m_nodes.size()-4, mn, mx);
+
+    // voxelBoxNode voxelN(testObstacleIdx);
+    // voxelN.fitBBox(Rs, testObstaclePos);
+
+
+    cVector3d mnDr;
+    cVector3d mxDr;
+
+    //dr1->m_node.render(mnDr, mxDr);
+    dr[0]->m_node.render(mnDr, mxDr);
+
+
+    cVector3d nnn(mn.x(),mn.y(), mn.z()),
+              xxx(mx.x(),mx.y(), mx.z()),
+              xnn(mx.x(),mn.y(), mn.z()),
+              nxn(mn.x(),mx.y(), mn.z()),
+              nnx(mn.x(),mn.y(), mx.z()),
+              xxn(mx.x(),mx.y(), mn.z()),
+              xnx(mx.x(),mn.y(), mx.z()),
+              nxx(mn.x(),mx.y(), mx.z());
+
+
+    // std::map<int, cShapeLine*> boundingBoxLine;
+
+
+
+    boundingBoxLine[0] = new cShapeLine(nnn, nnx);
+    boundingBoxLine[1] = new cShapeLine(nnn, nxn);
+    boundingBoxLine[2] = new cShapeLine(nnn, xnn);
+
+    boundingBoxLine[3] = new cShapeLine(xxx, nxx);
+    boundingBoxLine[4] = new cShapeLine(xxx, xnx);
+    boundingBoxLine[5] = new cShapeLine(xxx, xxn);
+
+    boundingBoxLine[6] = new cShapeLine(nxn, nxx);
+    boundingBoxLine[7] = new cShapeLine(nxn, xxn);
+
+    boundingBoxLine[8] = new cShapeLine(nnx, nxx);
+    boundingBoxLine[9] = new cShapeLine(nnx, xnx);
+
+    boundingBoxLine[10] = new cShapeLine(xnn, xxn);
+    boundingBoxLine[11] = new cShapeLine(xnn, xnx);
+
+
+    for (int k = 0; k < 12; ++k){
+    world->addChild(boundingBoxLine[k]);
     }
 
 
-    // insert cursor inside world
-    world->addChild(cursor);
-    world->addChild(cursorS1);
-    world->addChild(cursorS2);   
+
+    cColorf LineColor(0.7f, 0.7f, 0.7f);
+    // set size on lines
+    glLineWidth(1.0);
+
+    // set color of boundary box
+    glColor4fv(LineColor.getData());
+    cDrawWireBox(-0.5, 0.5, -0.5, 0.5,-0.5, 0.5);
+    glEnable(GL_LIGHTING);
+
+    // //------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // create small line to illustrate the velocity of the haptic device
     velocity = new cShapeLine(cVector3d(0,0,0), 
@@ -452,11 +625,22 @@ int main(int argc, char* argv[])
     // display a reference frame if haptic device supports orientations
     if (info.m_sensedRotation == true)
     {
-        // display reference frame
-        cursor->setShowFrame(true);
 
-        // set the size of the reference frame
-        cursor->setFrameSize(0.05);
+ 
+        //  // display reference frame
+        // dr1->m_cylinder->setShowFrame(true);
+
+        // // set the size of the reference frame
+        // dr1->m_cylinder->setFrameSize(0.05);   
+
+        for (int i = 0; i < numDrills; ++i){
+            // display reference frame
+            dr[i]->m_cylinder->setShowFrame(true);
+            // set the size of the reference frame
+            dr[i]->m_cylinder->setFrameSize(0.05);
+
+        }
+
     }
 
     // if the device has a gripper, enable the gripper to simulate a user switch
@@ -504,7 +688,7 @@ int main(int argc, char* argv[])
     //--------------------------------------------------------------------------
     // PREPARE TO WRITE DATA INTO A .TXT FILE
     //--------------------------------------------------------------------------    
-    myfile.open("resources/03-capsule1D/F_contact_and_Linear_Vel.txt");
+    myfile.open("resources/05-voxelCollision/F_contact_and_Linear_Vel.txt");
     myfile << "Time \t\t F_contact \t\t Linear_Vel \t\t InCollision\n";
 
 
@@ -667,10 +851,24 @@ void close(void)
     // close haptic device
     hapticDevice->close();
 
+
+    //cout << vC.m_maxDepth << endl;
+
     // delete resources
+    //cout << reinterpret_cast<void*>(boundingBoxLine) << endl;
+
+    //delete []boundingBoxLine;
     delete hapticsThread;
     delete world;
     delete handler;
+
+
+    for (int i = 0; i < numDrills; ++i){
+        delete dr[i];
+    }
+
+    //delete dr1;
+    
 }
 
 //------------------------------------------------------------------------------
@@ -688,9 +886,7 @@ void updateGraphics(void)
     std::string textOfBoundaryLayerIndex  = "Boundary Layer Index: ";
     std::string textOfInCollision  = "InCollision: ";
     std::string capsuleInCollisionText = capsuleInCollision ? "True" : "False";
-    //labelHapticDevicePosition->setText(hapticDevicePosition.str(3));
-    //labelProxyPosition->setText(textProxyPosition.str(3));
-    //labelFContact->setText(textFContact.str(3));
+
 
     labelHapticDevicePosition->setText(textOfDevicePosition + hapticDevicePosition.str(3));
     labelProxyPosition->setText(textOfProxyPosition + textProxyPosition.str(3));
@@ -771,7 +967,7 @@ void updateHaptics(void)
     // PROXY_SETUP AND INITIALIZATION
     //--------------------------------------------------------------------------
     cVector3d proxy_position, device_position, F_proxy, T_proxy, F_contact, T_contact;
-    cMatrix3d proxy_rotation, device_rotation;
+    cMatrix3d proxy_rotation, device_rotation, proxy_rotation2;
 
 
     F_contact.zero();
@@ -790,13 +986,21 @@ void updateHaptics(void)
 
     cVector3d position;
     cMatrix3d rotation;
+    cMatrix3d rotation2;
     cVector3d proxyLinearVel;
     cVector3d proxyAngularVel;
     cVector3d proxyLinearAcc;
     cVector3d proxyAngularAcc;
 
 
-    rotation.identity(); // right now the rotation of the cursor is not considered
+    //rotation.identity(); // right now the rotation of the cursor is not considered
+    // rotation.set(1,             0,          0,
+    //              0, sqrt(3.0)/2.0,      -1.0/2.0,
+    //              0,     1.0/2.0, sqrt(3.0)/2.0);
+    rotation.set(drillangle1);
+    rotation2.set(drillangle2);
+
+
 
     proxyLinearVel.zero();
     proxyAngularVel.zero();
@@ -829,22 +1033,101 @@ void updateHaptics(void)
         proxy_position = device_position;
         proxy_rotation = device_rotation;
 
+        proxy_rotation2 = rotation2;
+
+
+
         //cursor->setLocalRot(proxy_rotation);
         //cursor->setLocalPos(proxy_position);
 
+
         // // update position and orientation of cursor
 
-        cursor->setLocalPos(proxy_position + proxy_rotation * s1LocalPos);
-        //cursor->setLocalRot(proxy_rotation);//Pm = position
+        // cVector3d posS1 = proxy_position + proxy_rotation * s1LocalPos;
+        // cVector3d posS2 = proxy_position + proxy_rotation * s2LocalPos;
 
-        cursorS1->setLocalPos(proxy_position + proxy_rotation * s1LocalPos);
-        //cursorS1->setLocalRot(proxy_rotation);
 
-        cursorS2->setLocalPos(proxy_position + proxy_rotation * s2LocalPos);
-        //cursorS2->setLocalRot(proxy_rotation);
+        // dr1->setLocalPos(posS1, posS2);
+        // dr1->setLocalRot(proxy_rotation);
 
 
 
+
+        cVector3d offsetPos;
+        offsetPos.set(0.0, halfOffsetDist, 0.0);
+
+
+        std::map<int, cVector3d> drillPos1, drillPos2;
+        drillPos1[0] = proxy_position + proxy_rotation * s1LocalPos - offsetPos;
+        drillPos2[0] = proxy_position + proxy_rotation * s2LocalPos - offsetPos;
+
+        drillPos1[1] = proxy_position + proxy_rotation2 * s1LocalPos + offsetPos;       
+        drillPos2[1] = proxy_position + proxy_rotation2 * s2LocalPos + offsetPos;     
+
+
+        dr[0]->setLocalPos(drillPos1[0], drillPos2[0]);
+        dr[0]->setLocalRot(proxy_rotation);
+
+        dr[1]->setLocalPos(drillPos1[1], drillPos2[1]);
+        dr[1]->setLocalRot(proxy_rotation2);
+
+        
+
+
+        //debug
+        cVector3d mn;
+        cVector3d mx;
+        //dr1->m_node.render(mn, mx);
+        dr[0]->m_node.render(mn, mx);
+        // cout << "min: " << mn << endl;
+        // cout << "max: " << mn << endl;
+
+
+        cVector3d nnn(mn.x(),mn.y(), mn.z()),
+                  xxx(mx.x(),mx.y(), mx.z()),
+                  xnn(mx.x(),mn.y(), mn.z()),
+                  nxn(mn.x(),mx.y(), mn.z()),
+                  nnx(mn.x(),mn.y(), mx.z()),
+                  xxn(mx.x(),mx.y(), mn.z()),
+                  xnx(mx.x(),mn.y(), mx.z()),
+                  nxx(mn.x(),mx.y(), mx.z());
+
+
+        boundingBoxLine[0]->m_pointA = nnn;
+        boundingBoxLine[0]->m_pointB = nnx;
+
+        boundingBoxLine[1]->m_pointA = nnn;
+        boundingBoxLine[1]->m_pointB = nxn;
+
+        boundingBoxLine[2]->m_pointA = nnn;
+        boundingBoxLine[2]->m_pointB = xnn;
+
+        boundingBoxLine[3]->m_pointA = xxx;
+        boundingBoxLine[3]->m_pointB = nxx;
+
+        boundingBoxLine[4]->m_pointA = xxx;
+        boundingBoxLine[4]->m_pointB = xnx;
+
+        boundingBoxLine[5]->m_pointA = xxx;
+        boundingBoxLine[5]->m_pointB = xxn;
+
+        boundingBoxLine[6]->m_pointA = nxn;
+        boundingBoxLine[6]->m_pointB = nxx;
+
+        boundingBoxLine[7]->m_pointA = nxn;
+        boundingBoxLine[7]->m_pointB = xxn;
+
+        boundingBoxLine[8]->m_pointA = nnx;
+        boundingBoxLine[8]->m_pointB = nxx;
+
+        boundingBoxLine[9]->m_pointA = nnx;
+        boundingBoxLine[9]->m_pointB = xnx;
+
+        boundingBoxLine[10]->m_pointA = xnn;
+        boundingBoxLine[10]->m_pointB = xxn;
+
+        boundingBoxLine[11]->m_pointA = xnn;
+        boundingBoxLine[11]->m_pointB = xnx;
 
     }
 
@@ -866,12 +1149,17 @@ void updateHaptics(void)
         //cVector3d position;
         hapticDevice->getPosition(position);
         position.x(0);
-        position.y(0);
+        //position.y(0);
         position = scale_factor * position +home_pos;
         device_position = position;
         
         // read orientation 
         //cMatrix3d rotation;
+        // rotation.set(1,             0,          0,
+        //              0, sqrt(3.0)/2.0,      -1.0/2.0,
+        //              0,     1.0/2,     sqrt(3.0)/2.0);
+
+
 
         // hapticDevice->getRotation(rotation);
         // device_rotation = rotation;
@@ -915,53 +1203,50 @@ void updateHaptics(void)
         // velocity->m_pointA = position;
         // velocity->m_pointB = cAdd(position, linearVelocity);
 
-        // // update position and orientation of cursor
-        // cVector3d s1LocalPos(0, 0, -1/2.0*Hc);
-        // cVector3d s2LocalPos(0, 0, 1/2.0*Hc);
-
-        // cursor->setLocalPos(position + rotation * s1LocalPos);
-        // cursor->setLocalRot(rotation);
-
-        // cursorS1->setLocalPos(position + rotation * s1LocalPos);
-        // cursorS1->setLocalRot(rotation);
-
-        // cursorS2->setLocalPos(position + rotation * s2LocalPos);
-        // cursorS2->setLocalRot(rotation);
-
 
 
         // adjust the  color of the cursor according to the status of
         // the user-switch (ON = TRUE / OFF = FALSE)
+
+
         if (button0)
         {
-            cursor->m_material->setGreenMediumAquamarine();
-            cursorS1->m_material->setGreenMediumAquamarine();
-            cursorS2->m_material->setGreenMediumAquamarine();
+            for (int i = 0; i < numDrills; ++i){
+                dr[i]->setColor(0);
+            }
+            //dr1->setColor(0);
         }
         else if (button1)
         {
-            cursor->m_material->setYellowGold();
-            cursorS1->m_material->setYellowGold();
-            cursorS2->m_material->setYellowGold();
+            for (int i = 0; i < numDrills; ++i){
+                dr[i]->setColor(1);
+            } 
+            //dr1->setColor(1);
         }
         else if (button2)
         {
-            cursor->m_material->setOrangeCoral();
-            cursorS1->m_material->setOrangeCoral();
-            cursorS2->m_material->setOrangeCoral();
+            for (int i = 0; i < numDrills; ++i){
+                dr[i]->setColor(2);
+            }
+            //dr1->setColor(2);
         }
         else if (button3)
         {
-            cursor->m_material->setPurpleLavender();
-            cursorS1->m_material->setPurpleLavender();
-            cursorS2->m_material->setPurpleLavender();
+            for (int i = 0; i < numDrills; ++i){
+                dr[i]->setColor(3);
+            }
+            //dr1->setColor(3);
         }
         else
         {
-            cursor->m_material->setBlueRoyal();
-            cursorS1->m_material->setBlueRoyal();
-            cursorS2->m_material->setBlueRoyal();
+            for (int i = 0; i < numDrills; ++i){
+                dr[i]->setColor(4);
+            }
+            //dr1->setColor(4);//default
         }
+
+
+
 
         // update global variable for graphic display update
         hapticDevicePosition = device_position;
@@ -972,253 +1257,99 @@ void updateHaptics(void)
         // COMPUTE AND APPLY FORCES
         /////////////////////////////////////////////////////////////////////
 
-        cVector3d P1 = cursorS1->getLocalPos();
-        cVector3d P2 = cursorS2->getLocalPos();
-        cVector3d Pm = (P1 + P2) / 2.0;
-        cVector3d unitL = P2 - P1; //unit vector from P1 to P2
-        unitL.normalize();
-        double x1c = P1.dot(unitL);
-        double x2c = P2.dot(unitL);
-        cVector3d yc = P1 - x1c * unitL;
+
+        //unitL may be used in other situations
+
+
+
+
 
 
         //F_proxy caused by the deviation from the device position
         F_proxy = proxy_kp * (device_position - proxy_position);
-        cVector3d F_proxy_to_hand = - proxy_kp * (device_position - proxy_position);
-
+        
         //proxy has no movement laterally
         F_proxy.x(0.0);
-        F_proxy.y(0.0);
-
-        //huge penalty for lateral movement of haptic device
-        // F_proxy_to_hand.x(100.0*F_proxy_to_hand.x());
-        // F_proxy_to_hand.y(100.0*F_proxy_to_hand.y());
-        F_proxy_to_hand.x(0);
-        F_proxy_to_hand.y(0);
-
-        //Try to use boundary layer concept
-        //here F_contact will be as the same magnitude and opposite direction as F_proxy
-        //proxy_b will be different if the capsule is in collision with balls, since it will largely affect the velocity
-
-
-        //double proxy_b = 0.01; // when the capsule is not in collision
 
 
 
 
         //is it possible for us to change the boundaryLayer size at the same time as executing the for loop
-        capsuleInCollision = false;
-
-        // std::map<int, cShapeSphere*> newBoundaryLayer;
-
-        //1->collision
-        //2->crush
-        //3->no collision
-        //4->already eliminated
-        int obstacleType;
-
-
-        // std::map<int, cShapeSphere*>::iterator it=boundaryLayer.begin();
-        // while (it!=boundaryLayer.end()){
-
-        //     int idx = it->first;
-        //     int newIdx = idx + 1;
-        //     if (newIdx < numObstacles && boundaryLayer.count(newIdx) == 0){// true == the key does not exist 
-                
-        //         obstacleType = isInCollision(newIdx, P1, P2, yc, unitL, x1c, x2c);
-        //         if (obstacleType == 1){
-        //             boundaryLayerIndex += 1;
-        //             boundaryLayer[newIdx] = obstacleS[newIdx];
-        //             capsuleInCollision = true;
-        //         }
-
-        //     }
-
-        //     obstacleType = isInCollision(idx, P1, P2, yc, unitL, x1c, x2c);
-        //     if (obstacleType == 1){
-        //         capsuleInCollision = true;
-        //     }else if (obstacleType == 2){//crushed
-        //         boundaryLayer.erase(it++);
-
-        //     }else if (obstacleType == 3){//final type no collision
-        //         ++it;
-        //     }     
-
-        // }
-
-
-
-        for (std::map<int, cShapeSphere*>::iterator it=boundaryLayer.begin(); it!=boundaryLayer.end();++it){
-
-            int idx = it->first;
-            int newIdx;
-            newIdx = idx + 1;
-            if (newIdx < numObstacles && boundaryLayer.count(newIdx) == 0){// true == the key does not exist 
-                
-                obstacleType = isInCollision(newIdx, P1, P2, yc, unitL, x1c, x2c);
-                if (obstacleType == 1){
-                    boundaryLayer[newIdx] = obstacleS[newIdx];
-                    boundaryLayerIndex += 1;
-                    capsuleInCollision = true;
-                }
-            }
-
-
-            obstacleType = isInCollision(idx, P1, P2, yc, unitL, x1c, x2c);
-            if (obstacleType == 1){
-                capsuleInCollision = true;
-            }
-            else if (obstacleType == 2){//crushed
-                boundaryLayer[idx] = NULL;
-            }
-            // }else if (obstacleType == 3){// no collision
-            //     ++it;
-            // }else if (obstacleType == 4){// already NULL, already eliminated
-            //     ++it;
-            // }   
-
-        }
-
-
-        // std::map<int, cShapeSphere*>::iterator it = boundaryLayer.begin();
-        // while (it != boundaryLayer.end()){
-        //     int idx = it->first;
-        //     int newIdx;
-        //     newIdx = idx + 1;
-        //     if (newIdx < numObstacles && boundaryLayer.find(newIdx) == boundaryLayer.end()){// true == the key does not exist 
-        //         if (isInCollision(boundaryLayer, newIdx, P1, P2, yc, unitL, x1c, x2c, newBoundaryLayer)){
-        //             boundaryLayerIndex += 1;
-        //             capsuleInCollision = true;
-        //         }
-        //     }
-
-        //     if (isInCollision(boundaryLayer, idx, P1, P2, yc, unitL, x1c, x2c)){
-        //         capsuleInCollision = true;
-        //     }
-
-        // }
-
-
-
-
-
-
-
-        if (capsuleInCollision == true){
-            F_contact = -(proxy_b_contact - proxy_b_no_contact) / proxy_b_contact * F_proxy;
-            //proxy_b = 10 / drillingAngularSpeed; //proxy_b much larger than 1.0 in order to make the proxyLinearVel comparable to drilling velocity
-        }else{
-            F_contact.zero();
-
-            //proxy_b = 0.01;
-        }
-
-
-
-
-
-
-
-        // if (boundaryLayerIndex < numObstacles){
-
-        //     cVector3d Px = obstacle[boundaryLayerIndex]->getLocalPos();
-
-        //     double xx = Px.dot(unitL);
-        //     cVector3d yx = Px - xx * unitL;
-        //     cVector3d F_contact_x;
-        //     F_contact_x.zero();
-
-
-        //     if (xx <= x1c){
-
-
-        //         double dist1x = P1.distance(Px);
-        //         if (Rc - Rs - epsForElimination < dist1x && dist1x < Rc + Rs){// near P1 collison and the obstacle hasn't been broken
-
-        //             double Fx = contact_kp * (Rc + Rs - dist1x);
-        //             cVector3d unitLx = P1 - Px;
-        //             unitLx.normalize();
-        //             F_contact_x = Fx * unitLx;
-
-
-        //         }else if(dist1x <= Rc - Rs - epsForElimination){// the ball is inside the capsule and should be crushed
-
-        //             obstacle[boundaryLayerIndex]->setEnabled(false);//disable the object, as it is broken by collision
-
-        //         }// no collision with the boundary layer, may be because it is at the start of the simulation, or the capsule is move upward in relaxed position
-
-
-        //     }else if(xx > x1c && xx < x2c){
-        //         double distcx = yc.distance(yx);
-        //         if (Rc - Rs < distcx && distcx < Rc + Rs){// between P1 nad P2 collision and the obstacle hasn't been broken
-        //             //double Fx = (contact_kp * Rc / 2.0) * (1 - cos(PI / Rs * (Rc + Rs - distcx)));
-        //             double Fx = contact_kp * (Rc + Rs - distcx);
-        //             cVector3d unitLx = yx - yc;
-        //             unitLx.normalize();
-        //             unitLx = -unitLx;
-        //             F_contact_x = Fx * unitLx;
-
-        //             cVector3d dArm = unitL.dot(Pm - Px) * unitL;
-        //             F_contact_x.crossr(dArm, T_contact_x);
-        //         }else if(distcx <= Rc - Rs){
-        //             it->second->setEnabled(false);//disable the object, as it is broken by collision
-        //         }
-
-        //     }else{//xx >= x2c near P2 collision
-        //         double dist2x = P2.distance(Px);
-        //         if (Rc - Rs < dist2x && dist2x < Rc + Rs){// near P2 collison and the obstacle hasn't been broken
-        //             //double Fx = (contact_kp * Rc / 2.0) * (1 - cos(PI / Rs * (Rc + Rs - dist2x)));
-        //             double Fx = contact_kp * (Rc + Rs - dist2x);
-        //             cVector3d unitLx = P2 - Px;
-        //             unitLx.normalize();
-        //             F_contact = Fx * unitLx;
-
-        //             cVector3d dArm = (Pm - P2) - unitLx.dot(Pm - P2) * unitLx; // arm
-        //             F_contact_x.crossr(dArm, T_contact_x);
-        //         }else if(dist2x <= Rc - Rs){
-        //             it->second->setEnabled(false);//disable the object, as it is broken by collision
-        //         }
-
-        //     }
-
-        //     //F_contact = F_contact + F_contact_x; 
-        //     F_contact = F_contact_x; // no sum of forces here 
-        // }
-
-
-
-
-
-
-        // double angle;
-        // cVector3d axis;
-
-        // cMatrix3d dRotation = cTranspose(proxy_rotation) * device_rotation;
-        // dRotation.toAxisAngle(axis, angle);//hope the angle is in radians
-        // T_proxy = proxy_rotation * ((proxy_kr * angle) * axis);//tranform the expression in proxy frame back to world frame
-
-
-
-
-
-
-        // apply damping term for working in drilling fuild
-
-        // cHapticDeviceInfo info = hapticDevice->getSpecifications();
-
-        // double Kv = 1.0 * info.m_maxLinearDamping;
-        // cVector3d forceDamping = -Kv * proxyLinearVel;
-
-        // double Kvr = 1.0 * info.m_maxAngularDamping;
-        // cVector3d torqueDamping = -Kvr * proxyAngularVel;
-
         
 
 
 
-        //linear acceleration & angular acceleration
+        //1->collision
+        //2->crush
+        //3->no collision
+        //4->already eliminated     no 4 currently
 
+
+        cVector3d F_contact;
+        capsuleInCollision = false;
+        bool stickyFlag = true;
+
+
+        int * collisionType = new int[numDrills];
+        for (int i = 0; i < numDrills; ++i){
+            collisionType[i] = vC.computeCollision(dr[i], lastLinearVel, stickyFlag);// if one stickyFlag is false, all should be false. Because now it is in drilling state
+            if (collisionType[i] == 1){
+                capsuleInCollision = true;
+            }
+        }
+        //int collisionType = vC.computeCollision(dr1, lastLinearVel, stickyFlag);
+
+        //vC.initialize(obstacleS, numObstacles);
+
+        // if (collisionType == 1){
+        //     capsuleInCollision = true;
+        // }
+
+
+
+        cVector3d F_vibration; //try first add the vibration force around x axis (which is originally 0 all the time)
+        //This force should only be added to the haptic device, not on F_total
+        F_contact.zero();
+        F_vibration.zero();
+        for (int i = 0; i < numDrills; ++i){
+            if (collisionType[i] == 1 && !stickyFlag){
+                F_contact = F_contact + dr[i]->contactForce(F_proxy, proxy_b_no_contact, proxy_b_contact_dir, proxy_b_contact_lat);
+                F_vibration = F_vibration + dr[i]->vibrationForce(false, curr_time);
+            }
+        }
+
+        //F_contact.zero();
+        // if (capsuleInCollision && !stickyFlag){
+
+
+        //     F_contact = dr1->contactForce(F_proxy, proxy_b_no_contact, proxy_b_contact_dir, proxy_b_contact_lat);
+        //     F_vibration = dr1->vibrationForce(true, curr_time);
+
+
+        // //cMatrix3d rotation;
+        // // hapticDevice->getRotation(rotation);
+        // // device_rotation = rotation;
+        // //rotation.identity();
+        // // const double a_source[3][3] = {
+        // //     {1, 0, 0},
+        // //     {0, cos(PI * 45.0 / 180.0), -sin(PI * 45.0 / 180.0)},
+        // //     {0, sin(PI * 45.0 / 180.0), cos(PI * 45.0 / 180.0)}
+        // // };
+        // // rotation.set(a_source);
+
+        // }else{
+        //     F_contact.zero();
+        //     F_vibration.zero();
+        // }
+
+
+
+
+
+
+        
         cVector3d F_total = F_proxy + F_contact; //+ forceDamping;
+
 
         textFContact = F_contact;
 
@@ -1226,6 +1357,8 @@ void updateHaptics(void)
         //proxyLinearVel = F_proxy/proxy_b;
         proxyLinearVel = F_total/proxy_b_no_contact;
 
+        //record the velocity
+        lastLinearVel = proxyLinearVel;
 
         std::string txtCollision = capsuleInCollision ? "True" : "False";
         myfile << curr_time << "\t" <<  F_contact.str(6) << "\t" << proxyLinearVel.str(6) << "\t"<< txtCollision <<"\n";
@@ -1236,36 +1369,123 @@ void updateHaptics(void)
         velocity->m_pointA = proxy_position;
         velocity->m_pointB = cAdd(proxy_position, proxyLinearVel);
 
-
-
-
-
-
-
         proxy_position = proxy_position + proxyLinearVel * loop_dt;
-        F_contact.zero();
+
+
+
+        cMatrix3d rotation;
+        cMatrix3d rotation2;
+        rotation.set(drillangle1);
+        rotation2.set(drillangle2);
+
+
+        proxy_rotation = rotation;
+        proxy_rotation2 = rotation2;
+
+        // cVector3d posNewS1 = proxy_position + proxy_rotation * s1LocalPos;
+        // cVector3d posNewS2 = proxy_position + proxy_rotation2 * s2LocalPos;
+
+
+        // dr1->setLocalPos(posNewS1, posNewS2);
+        // dr1->setLocalRot(proxy_rotation);
+
+
+
+        cVector3d offsetPos;
+        offsetPos.set(0.0, halfOffsetDist, 0.0);
+
+        std::map<int, cVector3d> drillPos1, drillPos2;
+        // drillPos1[0] = posNewS1 - offsetPos;
+        // drillPos2[0] = posNewS2 - offsetPos;
+
+        // drillPos1[1] = posNewS1 + offsetPos;        
+        // drillPos2[1] = posNewS2 + offsetPos;    
+
+        drillPos1[0] = proxy_position + proxy_rotation * s1LocalPos - offsetPos;
+        drillPos2[0] = proxy_position + proxy_rotation * s2LocalPos - offsetPos;
+
+        drillPos1[1] = proxy_position + proxy_rotation2 * s1LocalPos + offsetPos;       
+        drillPos2[1] = proxy_position + proxy_rotation2 * s2LocalPos + offsetPos;       
+
+
+        dr[0]->setLocalPos(drillPos1[0], drillPos2[0]);
+        dr[0]->setLocalRot(proxy_rotation);
+
+        dr[1]->setLocalPos(drillPos1[1], drillPos2[1]);
+        dr[1]->setLocalRot(proxy_rotation2);
 
 
 
 
-        cursor->setLocalPos(proxy_position + proxy_rotation * s1LocalPos);
-        //cursor->setLocalRot(proxy_rotation);//Pm = position
-
-        cursorS1->setLocalPos(proxy_position + proxy_rotation * s1LocalPos);
-        //cursorS1->setLocalRot(proxy_rotation);
-
-        cursorS2->setLocalPos(proxy_position + proxy_rotation * s2LocalPos);
-        //cursorS2->setLocalRot(proxy_rotation);
+        // dr1->setLocalPos(posNewS1, posNewS2);
+        // dr1->setLocalRot(proxy_rotation);
 
 
+        cVector3d mn;
+        cVector3d mx;
+
+
+        dr[0]->m_node.render(mn, mx);
+        //dr1->m_node.render(mn, mx);
+        // cout << "min: " << mn << endl;
+        // cout << "max: " << mn << endl;
+
+
+        cVector3d nnn(mn.x(),mn.y(), mn.z()),
+                  xxx(mx.x(),mx.y(), mx.z()),
+                  xnn(mx.x(),mn.y(), mn.z()),
+                  nxn(mn.x(),mx.y(), mn.z()),
+                  nnx(mn.x(),mn.y(), mx.z()),
+                  xxn(mx.x(),mx.y(), mn.z()),
+                  xnx(mx.x(),mn.y(), mx.z()),
+                  nxx(mn.x(),mx.y(), mx.z());
+
+
+        boundingBoxLine[0]->m_pointA = nnn;
+        boundingBoxLine[0]->m_pointB = nnx;
+
+        boundingBoxLine[1]->m_pointA = nnn;
+        boundingBoxLine[1]->m_pointB = nxn;
+
+        boundingBoxLine[2]->m_pointA = nnn;
+        boundingBoxLine[2]->m_pointB = xnn;
+
+        boundingBoxLine[3]->m_pointA = xxx;
+        boundingBoxLine[3]->m_pointB = nxx;
+
+        boundingBoxLine[4]->m_pointA = xxx;
+        boundingBoxLine[4]->m_pointB = xnx;
+
+        boundingBoxLine[5]->m_pointA = xxx;
+        boundingBoxLine[5]->m_pointB = xxn;
+
+        boundingBoxLine[6]->m_pointA = nxn;
+        boundingBoxLine[6]->m_pointB = nxx;
+
+        boundingBoxLine[7]->m_pointA = nxn;
+        boundingBoxLine[7]->m_pointB = xxn;
+
+        boundingBoxLine[8]->m_pointA = nnx;
+        boundingBoxLine[8]->m_pointB = nxx;
+
+        boundingBoxLine[9]->m_pointA = nnx;
+        boundingBoxLine[9]->m_pointB = xnx;
+
+        boundingBoxLine[10]->m_pointA = xnn;
+        boundingBoxLine[10]->m_pointB = xxn;
+
+        boundingBoxLine[11]->m_pointA = xnn;
+        boundingBoxLine[11]->m_pointB = xnx;
 
 
         // send computed force, torque, and gripper force to haptic device
         //hapticDevice->setForceAndTorqueAndGripperForce(force, torque, gripperForce);
 
         //hapticDevice->setForceAndTorqueAndGripperForce(-F_proxy * haptic_force_scale, cVector3d(), 0);
-        hapticDevice->setForceAndTorqueAndGripperForce(F_proxy_to_hand * haptic_force_scale, cVector3d(), 0);
 
+        hapticDevice->setForceAndTorqueAndGripperForce((-F_proxy+F_vibration) * haptic_force_scale, cVector3d(), 0);
+        F_contact.zero();
+        F_vibration.zero();
         //hapticDevice->setForceAndTorqueAndGripperForce(F_proxy * haptic_force_scale, T_proxy, 0);
         
         
@@ -1276,98 +1496,11 @@ void updateHaptics(void)
         // -------------------------------------------
         // update last time
         last_time = curr_time;
+        freqCounterHaptics.signal(1);
     }
     
     // exit haptics thread
     simulationFinished = true;
 }
 
-//------------------------------------------------------------------------------
-
-
-//1->collision
-//2->crush
-//3->no collision
-//4->already eliminated
-int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c){
-
-    if (boundaryLayer.count(idx)>0 && boundaryLayer[idx] == NULL){
-        return 4;
-    }else{
-
-        cVector3d Px = obstacleS[idx]->getLocalPos();
-
-        double xx = Px.dot(unitL);
-        cVector3d yx = Px - xx * unitL;
-
-        if (xx <= x1c){
-
-            double dist1x = P1.distance(Px);
-            if (Rc - Rs - epsForElimination < dist1x && dist1x < Rc + Rs){// near P1 collison and the obstacle hasn't been broken
-        
-                return 1;
-
-            }else if(dist1x <= Rc - Rs - epsForElimination){// the ball is inside the capsule and should be crushed
-
-                obstacleS[idx]->setEnabled(false);//disable the object, as it is broken by collision
-
-                return 2;//already crushed the ball, no longer in collision
-
-            }else{// no collision with the boundary layer, may be because it is at the start of the simulation, or the capsule is move upward in relaxed position
-                
-                return 3;
-
-            }
-
-
-        }else if(xx > x1c && xx < x2c){
-
-
-            double distcx = yc.distance(yx);
-            if (Rc - Rs - epsForElimination < distcx && distcx < Rc + Rs){// between P1 nad P2 collision and the obstacle hasn't been broken
-                
-                return 1;
-
-            }else if(distcx <= Rc - Rs - epsForElimination){
-                
-                obstacleS[idx]->setEnabled(false);//disable the object, as it is broken by collision
-
-                return 2;//already crushed the ball, no longer in collision
-
-            }else{
-
-                return 3;
-
-            }
-
-
-        }else{//xx >= x2c near P2 collision
-
-
-            double dist2x = P2.distance(Px);
-            if (Rc - Rs - epsForElimination< dist2x && dist2x < Rc + Rs){// near P2 collison and the obstacle hasn't been broken
-                
-                return 1;
-
-            }else if(dist2x <= Rc - Rs - epsForElimination){
-                obstacleS[idx]->setEnabled(false);//disable the object, as it is broken by collision
-
-                return 2;//already crushed the ball, no longer in collision
-            }else{
-
-                return 3;
-
-            }
-
-
-
-        }
-
-    }
-
-
-
-}
-
-//------------------------------------------------------------------------------
-
+//-----------------------------------------------------------------------------

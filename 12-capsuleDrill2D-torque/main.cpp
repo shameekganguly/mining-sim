@@ -88,10 +88,6 @@ cShapeSphere* cursorS2;
 // a line representing the velocity vector of the haptic device
 cShapeLine* velocity;
 
-//obstacle spheres
-// int numObstacles = 3;
-// cShapeSphere* obstacleS;
-
 
 
 // a haptic device handler
@@ -157,9 +153,9 @@ int swapInterval = 1;
 // DECLARED NEW VARIABLES
 //------------------------------------------------------------------------------
 
-double Rc = 0.02; // radius of the cylinder
-double Hc = 0.05;
-double Rs = 0.01; // radius of the sphere obstacle
+double Rc = 0.03; // radius of the cylinder
+double Hc = 0.10;
+double Rs = 0.002; // radius of the sphere obstacle
 #define PI 3.14159265
 
 //flags for haptic interaction
@@ -169,13 +165,17 @@ double scale_factor = 5.0;
 cLabel* labelProxyPosition;
 cVector3d textProxyPosition;
 
-int numObstacles = 5;
-cVector3d home_pos(0.0, 0.0, (2.0 * Rs * (numObstacles / 2 + 1) + Rs) + Hc / 2.0 + 2 * Rs); //the final 2 * Rs is for a little free space of the capsule
+int numObstacles = 1024;
+int sqrtNumObs = sqrt(numObstacles);
+cVector3d home_pos(0.0, 0.0, (2.0 * Rs * (sqrtNumObs / 2 + 1) + Rs) + Hc / 2.0 + 5 * Rs); //the final 2 * Rs is for a little free space of the capsule
 
 cLabel* labelFContact;
 cLabel* labelBLIndex;
 cLabel* labelInCollision;
+cLabel* labelTorque;
+
 cVector3d textFContact;
+double textTorque;
 
 double drillingAngularSpeed = 1; //eventually this should be controlled by the gripper angle
 
@@ -187,10 +187,16 @@ std::map<int, cShapeSphere*> boundaryLayer;
 bool capsuleInCollision;
 
 const double proxy_b_no_contact = 0.01;//will change between contact and no contact condition
-double proxy_b_contact = proxy_b_no_contact + 10 / drillingAngularSpeed;
-//double proxy_b_contact = 10 / drillingAngularSpeed;
+
+double k_collision_dir = 10.0;
+double k_collision_lat = 60.0;//30.0
+
+double proxy_b_contact_dir = proxy_b_no_contact + k_collision_dir / drillingAngularSpeed; //along the direction of the axis
+double proxy_b_contact_lat = proxy_b_no_contact + k_collision_lat / drillingAngularSpeed; //along the lateral direction
+
 ofstream myfile;//used for output velocity and force wrt time
 
+cVector3d lastLinearVel;
 
 
 //------------------------------------------------------------------------------
@@ -225,13 +231,12 @@ void close(void);
 // bool isInCollision(std::map<int, cShapeSphere*> &boundaryLayer, int idx,
 //                    cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c);
 
-int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c);
-
-
+//int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c, bool & stickyFlag); 
+int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c, bool & stickyFlag, double & wrenchArmSum, int & collisionVoxelNum);
 
 //==============================================================================
 /*
-    DEMO:   03-capsule1D.cpp
+    DEMO:   12-capsuleDrill2D-torque.cpp
 
     This application illustrates how to program forces, torques and gripper
     forces to your haptic device.
@@ -256,7 +261,7 @@ int main(int argc, char* argv[])
     cout << endl;
     cout << "-----------------------------------" << endl;
     cout << "ROBOT_MINING_SIM" << endl;
-    cout << "Demo: 03-capsule1D" << endl;
+    cout << "Demo: 12-capsuleDrill2D-torque" << endl;
     cout << "Copyright 2003-2018" << endl;
     cout << "-----------------------------------" << endl << endl << endl;
     cout << "Keyboard Options:" << endl << endl;
@@ -266,6 +271,9 @@ int main(int argc, char* argv[])
     cout << "[m] - Enable/Disable vertical mirroring" << endl;
     cout << "[q] - Exit application" << endl;
     cout << endl << endl;
+
+
+    lastLinearVel.zero();
 
 
     //--------------------------------------------------------------------------
@@ -333,6 +341,12 @@ int main(int argc, char* argv[])
     }
 #endif
 
+    //--------------------------------------------------------------------------
+    // SET HIGHER FREQUENCY
+    //--------------------------------------------------------------------------
+    freqCounterGraphics.setTimePeriod(0.001);
+    freqCounterHaptics.setTimePeriod(0.001);
+
 
     //--------------------------------------------------------------------------
     // WORLD - CAMERA - LIGHTING
@@ -383,9 +397,7 @@ int main(int argc, char* argv[])
     // A CAPSULE SHAPE CURSOR
     //--------------------------------------------------------------------------
 
-    // double Rc = 0.01; // radius of the cylinder
-    // double Hc = 0.05;
-    // double Rs = 0.005; // radius of the sphere obstacle
+
     // create two moving spheres and a moving cylinder (cursor) to render a capsule which represents the haptic device
     cursor = new cShapeCylinder(Rc, Rc, Hc);
     cursorS1 = new cShapeSphere(Rc);
@@ -402,14 +414,25 @@ int main(int argc, char* argv[])
         //     {0, sin(PI * 45.0 / 180.0), cos(PI * 45.0 / 180.0)}
         // };
         // rotation.set(a_source);
+    
 
-    for (int i = 0; i < numObstacles; i++){
-        obstacleS[i] = new cShapeSphere(Rs);
-        cVector3d posObstacle(0, 0, -(i-numObstacles / 2) * 2.0 * Rs);
-        obstacleS[i]->setLocalPos(posObstacle);
-        obstacleS[i]->setLocalRot(rotObstacle);
-        world->addChild(obstacleS[i]); 
+
+    for (int i = 0; i < sqrtNumObs; i++){
+        for (int j = 0; j < sqrtNumObs; j++){
+                int obsIdx = sqrtNumObs * i + j;
+                obstacleS[obsIdx] = new cShapeSphere(Rs);
+                cVector3d posObstacle(0,(j + 1 - sqrtNumObs / 2) * 2 * Rs - Rs - (sqrtNumObs % 2), -(i-sqrtNumObs / 2) * 2.0 * Rs);
+                obstacleS[obsIdx]->setLocalPos(posObstacle);
+                obstacleS[obsIdx]->setLocalRot(rotObstacle);
+                world->addChild(obstacleS[obsIdx]); 
+            }
     }
+
+
+
+
+
+
 
 
     // insert cursor inside world
@@ -493,6 +516,9 @@ int main(int argc, char* argv[])
     labelInCollision = new cLabel(font);
     camera->m_frontLayer->addChild(labelInCollision);
 
+    labelTorque = new cLabel(font);
+    camera->m_frontLayer->addChild(labelTorque);
+
     
     // create a label to display the haptic and graphic rate of the simulation
     labelRates = new cLabel(font);
@@ -504,7 +530,7 @@ int main(int argc, char* argv[])
     //--------------------------------------------------------------------------
     // PREPARE TO WRITE DATA INTO A .TXT FILE
     //--------------------------------------------------------------------------    
-    myfile.open("resources/03-capsule1D/F_contact_and_Linear_Vel.txt");
+    myfile.open("resources/12-capsuleDrill2D-torque/F_contact_and_Linear_Vel.txt");
     myfile << "Time \t\t F_contact \t\t Linear_Vel \t\t InCollision\n";
 
 
@@ -688,6 +714,8 @@ void updateGraphics(void)
     std::string textOfBoundaryLayerIndex  = "Boundary Layer Index: ";
     std::string textOfInCollision  = "InCollision: ";
     std::string capsuleInCollisionText = capsuleInCollision ? "True" : "False";
+    std::string textOfTorque = "Torque magnitude: ";
+
     //labelHapticDevicePosition->setText(hapticDevicePosition.str(3));
     //labelProxyPosition->setText(textProxyPosition.str(3));
     //labelFContact->setText(textFContact.str(3));
@@ -697,6 +725,8 @@ void updateGraphics(void)
     labelFContact->setText(textOfContactForce + textFContact.str(6));
     labelBLIndex->setText(textOfBoundaryLayerIndex + std::to_string(boundaryLayerIndex));
     labelInCollision->setText(textOfInCollision + capsuleInCollisionText);
+    labelTorque->setText(textOfTorque + std::to_string(textTorque));
+
 
 
 
@@ -724,6 +754,8 @@ void updateGraphics(void)
     labelBLIndex->setLocalPos(20, height - 160, 0);
 
     labelInCollision->setLocalPos(20, height - 190, 0);
+
+    labelTorque->setLocalPos(20, height - 220, 0);
 
 
     /////////////////////////////////////////////////////////////////////
@@ -866,7 +898,7 @@ void updateHaptics(void)
         //cVector3d position;
         hapticDevice->getPosition(position);
         position.x(0);
-        position.y(0);
+        //position.y(0);
         position = scale_factor * position +home_pos;
         device_position = position;
         
@@ -972,253 +1004,144 @@ void updateHaptics(void)
         // COMPUTE AND APPLY FORCES
         /////////////////////////////////////////////////////////////////////
 
-        cVector3d P1 = cursorS1->getLocalPos();
-        cVector3d P2 = cursorS2->getLocalPos();
-        cVector3d Pm = (P1 + P2) / 2.0;
-        cVector3d unitL = P2 - P1; //unit vector from P1 to P2
+        cVector3d P1 = cursorS1->getLocalPos(); // position of sphere 1 (drill head)
+        cVector3d P2 = cursorS2->getLocalPos(); // position of sphere 2 (drill tail)
+        cVector3d Pm = (P1 + P2) / 2.0;         // position of mass center (also the cylinder center)
+        cVector3d unitL = P2 - P1;              // unit vector from P1 to P2
         unitL.normalize();
-        double x1c = P1.dot(unitL);
-        double x2c = P2.dot(unitL);
-        cVector3d yc = P1 - x1c * unitL;
+        double x1c = P1.dot(unitL);             // projection of P1 along direction of unit vector
+        double x2c = P2.dot(unitL);             // projection of P2 along direction of unit vector
+        cVector3d yc = P1 - x1c * unitL;        // projection of center axis along the direction perpendicular to axis direction
 
 
         //F_proxy caused by the deviation from the device position
         F_proxy = proxy_kp * (device_position - proxy_position);
-        cVector3d F_proxy_to_hand = - proxy_kp * (device_position - proxy_position);
-
+        
         //proxy has no movement laterally
         F_proxy.x(0.0);
-        F_proxy.y(0.0);
-
-        //huge penalty for lateral movement of haptic device
-        // F_proxy_to_hand.x(100.0*F_proxy_to_hand.x());
-        // F_proxy_to_hand.y(100.0*F_proxy_to_hand.y());
-        F_proxy_to_hand.x(0);
-        F_proxy_to_hand.y(0);
-
-        //Try to use boundary layer concept
-        //here F_contact will be as the same magnitude and opposite direction as F_proxy
-        //proxy_b will be different if the capsule is in collision with balls, since it will largely affect the velocity
-
-
-        //double proxy_b = 0.01; // when the capsule is not in collision
 
 
 
 
         //is it possible for us to change the boundaryLayer size at the same time as executing the for loop
-        capsuleInCollision = false;
-
-        // std::map<int, cShapeSphere*> newBoundaryLayer;
-
-        //1->collision
-        //2->crush
-        //3->no collision
-        //4->already eliminated
-        int obstacleType;
-
-
-        // std::map<int, cShapeSphere*>::iterator it=boundaryLayer.begin();
-        // while (it!=boundaryLayer.end()){
-
-        //     int idx = it->first;
-        //     int newIdx = idx + 1;
-        //     if (newIdx < numObstacles && boundaryLayer.count(newIdx) == 0){// true == the key does not exist 
-                
-        //         obstacleType = isInCollision(newIdx, P1, P2, yc, unitL, x1c, x2c);
-        //         if (obstacleType == 1){
-        //             boundaryLayerIndex += 1;
-        //             boundaryLayer[newIdx] = obstacleS[newIdx];
-        //             capsuleInCollision = true;
-        //         }
-
-        //     }
-
-        //     obstacleType = isInCollision(idx, P1, P2, yc, unitL, x1c, x2c);
-        //     if (obstacleType == 1){
-        //         capsuleInCollision = true;
-        //     }else if (obstacleType == 2){//crushed
-        //         boundaryLayer.erase(it++);
-
-        //     }else if (obstacleType == 3){//final type no collision
-        //         ++it;
-        //     }     
-
-        // }
-
-
-
-        for (std::map<int, cShapeSphere*>::iterator it=boundaryLayer.begin(); it!=boundaryLayer.end();++it){
-
-            int idx = it->first;
-            int newIdx;
-            newIdx = idx + 1;
-            if (newIdx < numObstacles && boundaryLayer.count(newIdx) == 0){// true == the key does not exist 
-                
-                obstacleType = isInCollision(newIdx, P1, P2, yc, unitL, x1c, x2c);
-                if (obstacleType == 1){
-                    boundaryLayer[newIdx] = obstacleS[newIdx];
-                    boundaryLayerIndex += 1;
-                    capsuleInCollision = true;
-                }
-            }
-
-
-            obstacleType = isInCollision(idx, P1, P2, yc, unitL, x1c, x2c);
-            if (obstacleType == 1){
-                capsuleInCollision = true;
-            }
-            else if (obstacleType == 2){//crushed
-                boundaryLayer[idx] = NULL;
-            }
-            // }else if (obstacleType == 3){// no collision
-            //     ++it;
-            // }else if (obstacleType == 4){// already NULL, already eliminated
-            //     ++it;
-            // }   
-
-        }
-
-
-        // std::map<int, cShapeSphere*>::iterator it = boundaryLayer.begin();
-        // while (it != boundaryLayer.end()){
-        //     int idx = it->first;
-        //     int newIdx;
-        //     newIdx = idx + 1;
-        //     if (newIdx < numObstacles && boundaryLayer.find(newIdx) == boundaryLayer.end()){// true == the key does not exist 
-        //         if (isInCollision(boundaryLayer, newIdx, P1, P2, yc, unitL, x1c, x2c, newBoundaryLayer)){
-        //             boundaryLayerIndex += 1;
-        //             capsuleInCollision = true;
-        //         }
-        //     }
-
-        //     if (isInCollision(boundaryLayer, idx, P1, P2, yc, unitL, x1c, x2c)){
-        //         capsuleInCollision = true;
-        //     }
-
-        // }
-
-
-
-
-
-
-
-        if (capsuleInCollision == true){
-            F_contact = -(proxy_b_contact - proxy_b_no_contact) / proxy_b_contact * F_proxy;
-            //proxy_b = 10 / drillingAngularSpeed; //proxy_b much larger than 1.0 in order to make the proxyLinearVel comparable to drilling velocity
-        }else{
-            F_contact.zero();
-
-            //proxy_b = 0.01;
-        }
-
-
-
-
-
-
-
-        // if (boundaryLayerIndex < numObstacles){
-
-        //     cVector3d Px = obstacle[boundaryLayerIndex]->getLocalPos();
-
-        //     double xx = Px.dot(unitL);
-        //     cVector3d yx = Px - xx * unitL;
-        //     cVector3d F_contact_x;
-        //     F_contact_x.zero();
-
-
-        //     if (xx <= x1c){
-
-
-        //         double dist1x = P1.distance(Px);
-        //         if (Rc - Rs - epsForElimination < dist1x && dist1x < Rc + Rs){// near P1 collison and the obstacle hasn't been broken
-
-        //             double Fx = contact_kp * (Rc + Rs - dist1x);
-        //             cVector3d unitLx = P1 - Px;
-        //             unitLx.normalize();
-        //             F_contact_x = Fx * unitLx;
-
-
-        //         }else if(dist1x <= Rc - Rs - epsForElimination){// the ball is inside the capsule and should be crushed
-
-        //             obstacle[boundaryLayerIndex]->setEnabled(false);//disable the object, as it is broken by collision
-
-        //         }// no collision with the boundary layer, may be because it is at the start of the simulation, or the capsule is move upward in relaxed position
-
-
-        //     }else if(xx > x1c && xx < x2c){
-        //         double distcx = yc.distance(yx);
-        //         if (Rc - Rs < distcx && distcx < Rc + Rs){// between P1 nad P2 collision and the obstacle hasn't been broken
-        //             //double Fx = (contact_kp * Rc / 2.0) * (1 - cos(PI / Rs * (Rc + Rs - distcx)));
-        //             double Fx = contact_kp * (Rc + Rs - distcx);
-        //             cVector3d unitLx = yx - yc;
-        //             unitLx.normalize();
-        //             unitLx = -unitLx;
-        //             F_contact_x = Fx * unitLx;
-
-        //             cVector3d dArm = unitL.dot(Pm - Px) * unitL;
-        //             F_contact_x.crossr(dArm, T_contact_x);
-        //         }else if(distcx <= Rc - Rs){
-        //             it->second->setEnabled(false);//disable the object, as it is broken by collision
-        //         }
-
-        //     }else{//xx >= x2c near P2 collision
-        //         double dist2x = P2.distance(Px);
-        //         if (Rc - Rs < dist2x && dist2x < Rc + Rs){// near P2 collison and the obstacle hasn't been broken
-        //             //double Fx = (contact_kp * Rc / 2.0) * (1 - cos(PI / Rs * (Rc + Rs - dist2x)));
-        //             double Fx = contact_kp * (Rc + Rs - dist2x);
-        //             cVector3d unitLx = P2 - Px;
-        //             unitLx.normalize();
-        //             F_contact = Fx * unitLx;
-
-        //             cVector3d dArm = (Pm - P2) - unitLx.dot(Pm - P2) * unitLx; // arm
-        //             F_contact_x.crossr(dArm, T_contact_x);
-        //         }else if(dist2x <= Rc - Rs){
-        //             it->second->setEnabled(false);//disable the object, as it is broken by collision
-        //         }
-
-        //     }
-
-        //     //F_contact = F_contact + F_contact_x; 
-        //     F_contact = F_contact_x; // no sum of forces here 
-        // }
-
-
-
-
-
-
-        // double angle;
-        // cVector3d axis;
-
-        // cMatrix3d dRotation = cTranspose(proxy_rotation) * device_rotation;
-        // dRotation.toAxisAngle(axis, angle);//hope the angle is in radians
-        // T_proxy = proxy_rotation * ((proxy_kr * angle) * axis);//tranform the expression in proxy frame back to world frame
-
-
-
-
-
-
-        // apply damping term for working in drilling fuild
-
-        // cHapticDeviceInfo info = hapticDevice->getSpecifications();
-
-        // double Kv = 1.0 * info.m_maxLinearDamping;
-        // cVector3d forceDamping = -Kv * proxyLinearVel;
-
-        // double Kvr = 1.0 * info.m_maxAngularDamping;
-        // cVector3d torqueDamping = -Kvr * proxyAngularVel;
-
         
 
 
 
-        //linear acceleration & angular acceleration
+        //1->collision
+        //2->crush
+        //3->no collision
+        //4->already eliminated     no 4 currently
 
+
+        cVector3d F_contact;
+        bool capsuleInCollision = false;
+        bool stickyFlag = true;
+
+
+        //int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c, bool & stickyFlag, double & wrenchArmSum, int & collisionVoxelNum){
+        double wrenchArmSum = 0.0;
+        int collisionVoxelNum = 0;
+
+
+
+        for (int i = 0; i < sqrtNumObs; i++){
+            for (int j = 0; j < sqrtNumObs; j++){
+                int obsIdx = sqrtNumObs * i + j;
+                if (obstacleS[obsIdx]->getEnabled()){
+                    int obstacleType = isInCollision(obsIdx, P1, P2, yc, unitL, x1c, x2c, stickyFlag, wrenchArmSum, collisionVoxelNum);
+                    if (obstacleType == 1){
+                        capsuleInCollision = true;
+                    }
+                }
+            }
+        }
+
+        double wrenchArmAverage = 0.0;
+        if (collisionVoxelNum > 0){
+            wrenchArmAverage = wrenchArmSum / collisionVoxelNum;
+        }
+
+        cVector3d F_vibration; //try first add the vibration force around x axis (which is originally 0 all the time)
+        //This force should only be added to the haptic device, not on F_total
+        
+
+        if (capsuleInCollision && !stickyFlag){
+            cVector3d F_proxy_dir, F_proxy_lat, F_contact_dir, F_contact_lat;
+            F_proxy_dir = unitL.dot(F_proxy) * unitL; //proxy force component along drilling direction 
+            F_proxy_lat = F_proxy - F_proxy_dir;   unitL.dot(F_proxy) * unitL; //proxy force component along drilling direction    
+            F_contact_dir = -(proxy_b_contact_dir - proxy_b_no_contact) / proxy_b_contact_dir * F_proxy_dir;
+            F_contact_lat = -(proxy_b_contact_lat - proxy_b_no_contact) / proxy_b_contact_lat * F_proxy_lat;
+            F_contact = F_contact_dir + F_contact_lat;
+
+            //-(proxy_b_contact - proxy_b_no_contact) / proxy_b_contact * F_proxy;
+
+            double vibrationFreq = 50; // Hz
+            double vibrationMag = 0.01; //or 0.01 lighter
+            double deltaT = curr_time - (int)(vibrationFreq * curr_time) / vibrationFreq;
+            double vibrationPhase = 2 * PI * deltaT * vibrationFreq;
+
+            F_vibration.x(vibrationMag * cos(vibrationPhase));
+
+            cVector3d latDirection;
+            cMatrix3d NormalRotation(1, 0, 0,
+                                       0, 0, 1,
+                                       0,-1, 0);
+
+            latDirection = NormalRotation * unitL;
+
+            double phaseDifference = PI / 2.0;
+            F_vibration = F_vibration + (vibrationMag * cos(vibrationPhase + phaseDifference)) * latDirection;
+
+
+
+
+
+
+        //cMatrix3d rotation;
+        hapticDevice->getRotation(rotation);
+        device_rotation = rotation;
+        //rotation.identity();
+        // const double a_source[3][3] = {
+        //     {1, 0, 0},
+        //     {0, cos(PI * 45.0 / 180.0), -sin(PI * 45.0 / 180.0)},
+        //     {0, sin(PI * 45.0 / 180.0), cos(PI * 45.0 / 180.0)}
+        // };
+        // rotation.set(a_source);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        }else{
+            F_contact.zero();
+            F_vibration.zero();
+        }
+
+        F_vibration.zero();
+
+
+        cVector3d torque;
+        cVector3d wrenchArmVec;
+        wrenchArmVec = -wrenchArmAverage * unitL;
+        wrenchArmVec.crossr(F_contact, torque);
+
+        textTorque = torque.x();
+
+
+        
         cVector3d F_total = F_proxy + F_contact; //+ forceDamping;
+
 
         textFContact = F_contact;
 
@@ -1226,6 +1149,8 @@ void updateHaptics(void)
         //proxyLinearVel = F_proxy/proxy_b;
         proxyLinearVel = F_total/proxy_b_no_contact;
 
+        //record the velocity
+        lastLinearVel = proxyLinearVel;
 
         std::string txtCollision = capsuleInCollision ? "True" : "False";
         myfile << curr_time << "\t" <<  F_contact.str(6) << "\t" << proxyLinearVel.str(6) << "\t"<< txtCollision <<"\n";
@@ -1236,14 +1161,7 @@ void updateHaptics(void)
         velocity->m_pointA = proxy_position;
         velocity->m_pointB = cAdd(proxy_position, proxyLinearVel);
 
-
-
-
-
-
-
         proxy_position = proxy_position + proxyLinearVel * loop_dt;
-        F_contact.zero();
 
 
 
@@ -1258,14 +1176,13 @@ void updateHaptics(void)
         //cursorS2->setLocalRot(proxy_rotation);
 
 
-
-
         // send computed force, torque, and gripper force to haptic device
         //hapticDevice->setForceAndTorqueAndGripperForce(force, torque, gripperForce);
 
         //hapticDevice->setForceAndTorqueAndGripperForce(-F_proxy * haptic_force_scale, cVector3d(), 0);
-        hapticDevice->setForceAndTorqueAndGripperForce(F_proxy_to_hand * haptic_force_scale, cVector3d(), 0);
 
+        hapticDevice->setForceAndTorqueAndGripperForce((-F_proxy+F_vibration) * haptic_force_scale, cVector3d(), 0);
+        F_contact.zero();
         //hapticDevice->setForceAndTorqueAndGripperForce(F_proxy * haptic_force_scale, T_proxy, 0);
         
         
@@ -1276,6 +1193,7 @@ void updateHaptics(void)
         // -------------------------------------------
         // update last time
         last_time = curr_time;
+        freqCounterHaptics.signal(1);
     }
     
     // exit haptics thread
@@ -1289,32 +1207,43 @@ void updateHaptics(void)
 //2->crush
 //3->no collision
 //4->already eliminated
-int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c){
+int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d unitL, double x1c, double x2c, bool & stickyFlag, double & wrenchArmSum, int & collisionVoxelNum){
+        
 
-    if (boundaryLayer.count(idx)>0 && boundaryLayer[idx] == NULL){
-        return 4;
-    }else{
+        // cVector3d P1 = cursorS1->getLocalPos(); // position of sphere 1 (drill head)
+        // cVector3d P2 = cursorS2->getLocalPos(); // position of sphere 2 (drill tail)
+        // cVector3d Pm = (P1 + P2) / 2.0;         // position of mass center (also the cylinder center)
+        // cVector3d unitL = P2 - P1;              // unit vector from P1 to P2
+        // unitL.normalize();
+        // double x1c = P1.dot(unitL);             // projection of P1 along direction of unit vector
+        // double x2c = P2.dot(unitL);             // projection of P2 along direction of unit vector
+        // cVector3d yc = P1 - x1c * unitL;        // projection of center axis along the direction perpendicular to axis direction
+
+
 
         cVector3d Px = obstacleS[idx]->getLocalPos();
 
         double xx = Px.dot(unitL);
         cVector3d yx = Px - xx * unitL;
+        //for collision-generate-all-force case, we only need to know if the drill is in collision with rock.
+
 
         if (xx <= x1c){
 
             double dist1x = P1.distance(Px);
             if (Rc - Rs - epsForElimination < dist1x && dist1x < Rc + Rs){// near P1 collison and the obstacle hasn't been broken
-        
+                if ((Px - P1).dot(lastLinearVel) > 0){
+                    stickyFlag = false;
+                }
+                wrenchArmSum += x2c + Rc - xx;
+                collisionVoxelNum++;
                 return 1;
 
             }else if(dist1x <= Rc - Rs - epsForElimination){// the ball is inside the capsule and should be crushed
-
                 obstacleS[idx]->setEnabled(false);//disable the object, as it is broken by collision
-
                 return 2;//already crushed the ball, no longer in collision
 
             }else{// no collision with the boundary layer, may be because it is at the start of the simulation, or the capsule is move upward in relaxed position
-                
                 return 3;
 
             }
@@ -1322,20 +1251,22 @@ int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d u
 
         }else if(xx > x1c && xx < x2c){
 
-
             double distcx = yc.distance(yx);
             if (Rc - Rs - epsForElimination < distcx && distcx < Rc + Rs){// between P1 nad P2 collision and the obstacle hasn't been broken
-                
+                cVector3d PL;
+                PL = P1 + unitL.dot(Px - P1) * unitL; // projection point of Px on center axis
+                if ((Px - PL).dot(lastLinearVel) > 0){
+                    stickyFlag = false;
+                }
+                wrenchArmSum += x2c + Rc - xx;
+                collisionVoxelNum++;
                 return 1;
 
             }else if(distcx <= Rc - Rs - epsForElimination){
-                
                 obstacleS[idx]->setEnabled(false);//disable the object, as it is broken by collision
-
                 return 2;//already crushed the ball, no longer in collision
 
             }else{
-
                 return 3;
 
             }
@@ -1343,27 +1274,26 @@ int isInCollision(int idx, cVector3d P1, cVector3d P2, cVector3d yc, cVector3d u
 
         }else{//xx >= x2c near P2 collision
 
-
             double dist2x = P2.distance(Px);
             if (Rc - Rs - epsForElimination< dist2x && dist2x < Rc + Rs){// near P2 collison and the obstacle hasn't been broken
-                
+                if ((Px - P2).dot(lastLinearVel) > 0){
+                    stickyFlag = false;
+                }
+                wrenchArmSum += x2c + Rc - xx;
+                collisionVoxelNum++;
                 return 1;
 
             }else if(dist2x <= Rc - Rs - epsForElimination){
                 obstacleS[idx]->setEnabled(false);//disable the object, as it is broken by collision
-
                 return 2;//already crushed the ball, no longer in collision
             }else{
-
                 return 3;
-
             }
 
 
 
         }
 
-    }
 
 
 
